@@ -1,0 +1,1612 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-14T00:00:00.000Z",
+  "alpha": 1,
+  "supportThreshold": 30,
+  "provenance": {
+    "source": "simulation-bootstrap",
+    "label": "Deterministic Sweeper simulation bootstrap (not TxLINE history)",
+    "fixtureCount": 48,
+    "sampleCount": 4320
+  },
+  "rows": {
+    "0-15|0|0": {
+      "goal_home": 66,
+      "goal_away": 22,
+      "card": 114,
+      "quiet": 426
+    },
+    "0-15|0|*": {
+      "goal_home": 69,
+      "goal_away": 26,
+      "card": 119,
+      "quiet": 428
+    },
+    "0-15|*|0": {
+      "goal_home": 85,
+      "goal_away": 32,
+      "card": 125,
+      "quiet": 461
+    },
+    "0-15|*|*": {
+      "goal_home": 88,
+      "goal_away": 36,
+      "card": 133,
+      "quiet": 463
+    },
+    "global|*|*": {
+      "goal_home": 593,
+      "goal_away": 351,
+      "card": 1345,
+      "quiet": 2031
+    },
+    "15-30|0|0": {
+      "goal_home": 37,
+      "goal_away": 9,
+      "card": 130,
+      "quiet": 207
+    },
+    "15-30|0|*": {
+      "goal_home": 43,
+      "goal_away": 26,
+      "card": 176,
+      "quiet": 271
+    },
+    "15-30|*|0": {
+      "goal_home": 58,
+      "goal_away": 9,
+      "card": 174,
+      "quiet": 272
+    },
+    "15-30|*|*": {
+      "goal_home": 74,
+      "goal_away": 32,
+      "card": 238,
+      "quiet": 376
+    },
+    "15-30|0|1": {
+      "goal_home": 6,
+      "goal_away": 2,
+      "card": 26,
+      "quiet": 25
+    },
+    "15-30|*|1": {
+      "goal_home": 8,
+      "goal_away": 2,
+      "card": 37,
+      "quiet": 32
+    },
+    "15-30|0|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 6
+    },
+    "15-30|*|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 6
+    },
+    "30-45|0|2": {
+      "goal_home": 2,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 0
+    },
+    "30-45|0|*": {
+      "goal_home": 39,
+      "goal_away": 56,
+      "card": 168,
+      "quiet": 176
+    },
+    "30-45|*|2": {
+      "goal_home": 2,
+      "goal_away": 5,
+      "card": 10,
+      "quiet": 0
+    },
+    "30-45|*|*": {
+      "goal_home": 110,
+      "goal_away": 94,
+      "card": 250,
+      "quiet": 266
+    },
+    "30-45|0|1": {
+      "goal_home": 5,
+      "goal_away": 7,
+      "card": 31,
+      "quiet": 48
+    },
+    "30-45|*|1": {
+      "goal_home": 8,
+      "goal_away": 7,
+      "card": 67,
+      "quiet": 74
+    },
+    "45-60|0|1": {
+      "goal_home": 10,
+      "goal_away": 6,
+      "card": 27,
+      "quiet": 40
+    },
+    "45-60|0|*": {
+      "goal_home": 17,
+      "goal_away": 27,
+      "card": 151,
+      "quiet": 149
+    },
+    "45-60|*|1": {
+      "goal_home": 10,
+      "goal_away": 26,
+      "card": 73,
+      "quiet": 53
+    },
+    "45-60|*|*": {
+      "goal_home": 55,
+      "goal_away": 85,
+      "card": 334,
+      "quiet": 246
+    },
+    "60-75|0|1": {
+      "goal_home": 22,
+      "goal_away": 4,
+      "card": 10,
+      "quiet": 36
+    },
+    "60-75|0|*": {
+      "goal_home": 77,
+      "goal_away": 14,
+      "card": 90,
+      "quiet": 186
+    },
+    "60-75|*|1": {
+      "goal_home": 37,
+      "goal_away": 21,
+      "card": 40,
+      "quiet": 61
+    },
+    "60-75|*|*": {
+      "goal_home": 139,
+      "goal_away": 56,
+      "card": 235,
+      "quiet": 290
+    },
+    "60-75|-1|1": {
+      "goal_home": 5,
+      "goal_away": 2,
+      "card": 9,
+      "quiet": 2
+    },
+    "60-75|-1|*": {
+      "goal_home": 19,
+      "goal_away": 12,
+      "card": 17,
+      "quiet": 13
+    },
+    "75+|-1|1": {
+      "goal_home": 0,
+      "goal_away": 5,
+      "card": 11,
+      "quiet": 2
+    },
+    "75+|-1|*": {
+      "goal_home": 3,
+      "goal_away": 5,
+      "card": 15,
+      "quiet": 26
+    },
+    "75+|*|1": {
+      "goal_home": 32,
+      "goal_away": 5,
+      "card": 33,
+      "quiet": 41
+    },
+    "75+|*|*": {
+      "goal_home": 127,
+      "goal_away": 48,
+      "card": 155,
+      "quiet": 390
+    },
+    "75+|-1|0": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 4,
+      "quiet": 23
+    },
+    "75+|*|0": {
+      "goal_home": 38,
+      "goal_away": 23,
+      "card": 36,
+      "quiet": 111
+    },
+    "15-30|0|-1": {
+      "goal_home": 0,
+      "goal_away": 12,
+      "card": 18,
+      "quiet": 15
+    },
+    "15-30|*|-1": {
+      "goal_home": 8,
+      "goal_away": 18,
+      "card": 18,
+      "quiet": 40
+    },
+    "30-45|0|-1": {
+      "goal_home": 8,
+      "goal_away": 5,
+      "card": 32,
+      "quiet": 54
+    },
+    "30-45|*|-1": {
+      "goal_home": 33,
+      "goal_away": 35,
+      "card": 34,
+      "quiet": 71
+    },
+    "45-60|0|-1": {
+      "goal_home": 0,
+      "goal_away": 5,
+      "card": 77,
+      "quiet": 23
+    },
+    "45-60|*|-1": {
+      "goal_home": 12,
+      "goal_away": 5,
+      "card": 105,
+      "quiet": 42
+    },
+    "60-75|1|1": {
+      "goal_home": 0,
+      "goal_away": 6,
+      "card": 8,
+      "quiet": 17
+    },
+    "60-75|1|*": {
+      "goal_home": 10,
+      "goal_away": 19,
+      "card": 66,
+      "quiet": 26
+    },
+    "75+|1|1": {
+      "goal_home": 10,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 38
+    },
+    "75+|1|*": {
+      "goal_home": 44,
+      "goal_away": 0,
+      "card": 24,
+      "quiet": 101
+    },
+    "0-15|1|0": {
+      "goal_home": 11,
+      "goal_away": 10,
+      "card": 1,
+      "quiet": 14
+    },
+    "0-15|1|*": {
+      "goal_home": 11,
+      "goal_away": 10,
+      "card": 4,
+      "quiet": 14
+    },
+    "30-45|0|0": {
+      "goal_home": 24,
+      "goal_away": 34,
+      "card": 89,
+      "quiet": 51
+    },
+    "30-45|*|0": {
+      "goal_home": 52,
+      "goal_away": 37,
+      "card": 121,
+      "quiet": 95
+    },
+    "45-60|1|0": {
+      "goal_home": 0,
+      "goal_away": 11,
+      "card": 22,
+      "quiet": 19
+    },
+    "45-60|1|*": {
+      "goal_home": 11,
+      "goal_away": 22,
+      "card": 76,
+      "quiet": 28
+    },
+    "45-60|*|0": {
+      "goal_home": 7,
+      "goal_away": 26,
+      "card": 72,
+      "quiet": 82
+    },
+    "60-75|1|0": {
+      "goal_home": 3,
+      "goal_away": 3,
+      "card": 15,
+      "quiet": 1
+    },
+    "60-75|*|0": {
+      "goal_home": 31,
+      "goal_away": 13,
+      "card": 36,
+      "quiet": 110
+    },
+    "60-75|0|0": {
+      "goal_home": 26,
+      "goal_away": 10,
+      "card": 8,
+      "quiet": 61
+    },
+    "60-75|-1|0": {
+      "goal_home": 2,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 9
+    },
+    "75+|0|0": {
+      "goal_home": 17,
+      "goal_away": 10,
+      "card": 5,
+      "quiet": 32
+    },
+    "75+|0|*": {
+      "goal_home": 36,
+      "goal_away": 10,
+      "card": 56,
+      "quiet": 170
+    },
+    "75+|0|1": {
+      "goal_home": 14,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 0
+    },
+    "45-60|0|0": {
+      "goal_home": 7,
+      "goal_away": 5,
+      "card": 17,
+      "quiet": 28
+    },
+    "75+|2|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 1
+    },
+    "75+|2|*": {
+      "goal_home": 27,
+      "goal_away": 20,
+      "card": 30,
+      "quiet": 53
+    },
+    "75+|2|0": {
+      "goal_home": 10,
+      "goal_away": 10,
+      "card": 8,
+      "quiet": 21
+    },
+    "60-75|0|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 13,
+      "quiet": 5
+    },
+    "60-75|*|-1": {
+      "goal_home": 31,
+      "goal_away": 0,
+      "card": 17,
+      "quiet": 8
+    },
+    "15-30|1|0": {
+      "goal_home": 9,
+      "goal_away": 0,
+      "card": 14,
+      "quiet": 33
+    },
+    "15-30|1|*": {
+      "goal_home": 12,
+      "goal_away": 0,
+      "card": 32,
+      "quiet": 58
+    },
+    "30-45|1|0": {
+      "goal_home": 18,
+      "goal_away": 0,
+      "card": 15,
+      "quiet": 19
+    },
+    "30-45|1|*": {
+      "goal_home": 26,
+      "goal_away": 15,
+      "card": 51,
+      "quiet": 29
+    },
+    "45-60|1|1": {
+      "goal_home": 0,
+      "goal_away": 2,
+      "card": 28,
+      "quiet": 3
+    },
+    "60-75|0|-2": {
+      "goal_home": 10,
+      "goal_away": 0,
+      "card": 31,
+      "quiet": 49
+    },
+    "60-75|*|-2": {
+      "goal_home": 14,
+      "goal_away": 3,
+      "card": 75,
+      "quiet": 52
+    },
+    "75+|0|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 52
+    },
+    "75+|*|-2": {
+      "goal_home": 7,
+      "goal_away": 0,
+      "card": 16,
+      "quiet": 52
+    },
+    "0-15|-1|0": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 19
+    },
+    "0-15|-1|*": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 19
+    },
+    "15-30|-1|0": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 24,
+      "quiet": 21
+    },
+    "15-30|-1|*": {
+      "goal_home": 13,
+      "goal_away": 6,
+      "card": 24,
+      "quiet": 30
+    },
+    "30-45|-1|0": {
+      "goal_home": 4,
+      "goal_away": 0,
+      "card": 9,
+      "quiet": 15
+    },
+    "30-45|-1|*": {
+      "goal_home": 36,
+      "goal_away": 0,
+      "card": 12,
+      "quiet": 36
+    },
+    "45-60|-1|0": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 18,
+      "quiet": 16
+    },
+    "45-60|-1|*": {
+      "goal_home": 24,
+      "goal_away": 28,
+      "card": 42,
+      "quiet": 21
+    },
+    "45-60|-1|-1": {
+      "goal_home": 2,
+      "goal_away": 0,
+      "card": 9,
+      "quiet": 4
+    },
+    "60-75|-1|-1": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "75+|0|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 15,
+      "quiet": 0
+    },
+    "75+|*|-1": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 18,
+      "quiet": 32
+    },
+    "30-45|-1|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 14
+    },
+    "45-60|-1|1": {
+      "goal_home": 0,
+      "goal_away": 18,
+      "card": 8,
+      "quiet": 1
+    },
+    "45-60|-1|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 7,
+      "quiet": 0
+    },
+    "45-60|*|2": {
+      "goal_home": 1,
+      "goal_away": 5,
+      "card": 26,
+      "quiet": 17
+    },
+    "60-75|-1|2": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 0,
+      "quiet": 2
+    },
+    "60-75|*|2": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 40,
+      "quiet": 27
+    },
+    "60-75|-2|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 0
+    },
+    "60-75|-2|*": {
+      "goal_home": 10,
+      "goal_away": 9,
+      "card": 10,
+      "quiet": 17
+    },
+    "75+|-2|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 4,
+      "quiet": 0
+    },
+    "75+|-2|*": {
+      "goal_home": 10,
+      "goal_away": 0,
+      "card": 19,
+      "quiet": 21
+    },
+    "75+|*|2": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 7,
+      "quiet": 31
+    },
+    "75+|-2|0": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 7,
+      "quiet": 11
+    },
+    "45-60|0|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 6,
+      "quiet": 16
+    },
+    "60-75|0|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 17,
+      "quiet": 4
+    },
+    "60-75|0|3": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 1
+    },
+    "60-75|*|3": {
+      "goal_home": 8,
+      "goal_away": 2,
+      "card": 15,
+      "quiet": 1
+    },
+    "75+|0|3": {
+      "goal_home": 1,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 29
+    },
+    "75+|*|3": {
+      "goal_home": 38,
+      "goal_away": 0,
+      "card": 4,
+      "quiet": 46
+    },
+    "75+|1|3": {
+      "goal_home": 14,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "75+|2|3": {
+      "goal_home": 16,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 13
+    },
+    "60-75|2|0": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 27
+    },
+    "60-75|2|*": {
+      "goal_home": 13,
+      "goal_away": 0,
+      "card": 34,
+      "quiet": 45
+    },
+    "75+|3|0": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 0,
+      "quiet": 11
+    },
+    "75+|3|*": {
+      "goal_home": 2,
+      "goal_away": 13,
+      "card": 4,
+      "quiet": 19
+    },
+    "30-45|1|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 26,
+      "quiet": 7
+    },
+    "45-60|1|-2": {
+      "goal_home": 0,
+      "goal_away": 7,
+      "card": 4,
+      "quiet": 6
+    },
+    "45-60|*|-2": {
+      "goal_home": 22,
+      "goal_away": 23,
+      "card": 28,
+      "quiet": 38
+    },
+    "60-75|1|-2": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 30,
+      "quiet": 3
+    },
+    "60-75|1|-3": {
+      "goal_home": 7,
+      "goal_away": 7,
+      "card": 1,
+      "quiet": 0
+    },
+    "60-75|*|-3": {
+      "goal_home": 18,
+      "goal_away": 7,
+      "card": 12,
+      "quiet": 31
+    },
+    "75+|0|-3": {
+      "goal_home": 4,
+      "goal_away": 0,
+      "card": 24,
+      "quiet": 51
+    },
+    "75+|*|-3": {
+      "goal_home": 9,
+      "goal_away": 10,
+      "card": 41,
+      "quiet": 77
+    },
+    "75+|1|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 14
+    },
+    "15-30|1|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 11,
+      "quiet": 7
+    },
+    "30-45|1|3": {
+      "goal_home": 5,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "30-45|*|3": {
+      "goal_home": 5,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 2
+    },
+    "30-45|2|3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 2
+    },
+    "30-45|2|*": {
+      "goal_home": 9,
+      "goal_away": 10,
+      "card": 12,
+      "quiet": 15
+    },
+    "45-60|2|3": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 15,
+      "quiet": 1
+    },
+    "45-60|2|*": {
+      "goal_home": 3,
+      "goal_away": 5,
+      "card": 59,
+      "quiet": 22
+    },
+    "45-60|*|3": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 18,
+      "quiet": 4
+    },
+    "45-60|2|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 12,
+      "quiet": 1
+    },
+    "60-75|2|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 18
+    },
+    "75+|2|2": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 0,
+      "quiet": 4
+    },
+    "45-60|0|-2": {
+      "goal_home": 0,
+      "goal_away": 11,
+      "card": 20,
+      "quiet": 32
+    },
+    "45-60|0|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 4,
+      "quiet": 10
+    },
+    "45-60|*|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 12,
+      "quiet": 10
+    },
+    "60-75|0|-3": {
+      "goal_home": 11,
+      "goal_away": 0,
+      "card": 11,
+      "quiet": 30
+    },
+    "45-60|1|2": {
+      "goal_home": 1,
+      "goal_away": 2,
+      "card": 1,
+      "quiet": 0
+    },
+    "45-60|3|3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 3
+    },
+    "45-60|3|*": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 6,
+      "quiet": 3
+    },
+    "60-75|3|3": {
+      "goal_home": 0,
+      "goal_away": 2,
+      "card": 7,
+      "quiet": 0
+    },
+    "60-75|3|*": {
+      "goal_home": 0,
+      "goal_away": 2,
+      "card": 15,
+      "quiet": 1
+    },
+    "60-75|2|3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 6,
+      "quiet": 0
+    },
+    "75+|3|3": {
+      "goal_home": 2,
+      "goal_away": 0,
+      "card": 1,
+      "quiet": 1
+    },
+    "45-60|1|-1": {
+      "goal_home": 10,
+      "goal_away": 0,
+      "card": 13,
+      "quiet": 0
+    },
+    "60-75|1|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 2
+    },
+    "75+|1|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 25
+    },
+    "15-30|-1|-1": {
+      "goal_home": 5,
+      "goal_away": 6,
+      "card": 0,
+      "quiet": 9
+    },
+    "30-45|-1|-1": {
+      "goal_home": 25,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 6
+    },
+    "45-60|-1|-2": {
+      "goal_home": 22,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "75+|1|-3": {
+      "goal_home": 5,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 11
+    },
+    "75+|2|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 14,
+      "quiet": 7
+    },
+    "75+|2|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 0
+    },
+    "75+|2|-1": {
+      "goal_home": 1,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 7
+    },
+    "0-15|2|0": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 2
+    },
+    "0-15|2|*": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 2
+    },
+    "15-30|2|0": {
+      "goal_home": 4,
+      "goal_away": 0,
+      "card": 6,
+      "quiet": 11
+    },
+    "15-30|2|*": {
+      "goal_home": 6,
+      "goal_away": 0,
+      "card": 6,
+      "quiet": 17
+    },
+    "30-45|2|0": {
+      "goal_home": 6,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 10
+    },
+    "30-45|3|0": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 0,
+      "quiet": 0
+    },
+    "30-45|3|*": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 7,
+      "quiet": 5
+    },
+    "45-60|2|0": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 15,
+      "quiet": 15
+    },
+    "45-60|2|-2": {
+      "goal_home": 0,
+      "goal_away": 5,
+      "card": 4,
+      "quiet": 0
+    },
+    "75+|1|0": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 12,
+      "quiet": 13
+    },
+    "75+|-1|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 1
+    },
+    "45-60|-2|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 4
+    },
+    "45-60|-2|*": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 8
+    },
+    "60-75|-2|1": {
+      "goal_home": 10,
+      "goal_away": 9,
+      "card": 0,
+      "quiet": 5
+    },
+    "75+|-2|1": {
+      "goal_home": 8,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "60-75|-3|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 1
+    },
+    "60-75|-3|*": {
+      "goal_home": 10,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 2
+    },
+    "75+|-3|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 7,
+      "quiet": 0
+    },
+    "75+|-3|*": {
+      "goal_home": 5,
+      "goal_away": 0,
+      "card": 7,
+      "quiet": 0
+    },
+    "75+|-3|3": {
+      "goal_home": 5,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "75+|-2|3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 3
+    },
+    "75+|0|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 6
+    },
+    "0-15|0|-1": {
+      "goal_home": 0,
+      "goal_away": 4,
+      "card": 4,
+      "quiet": 2
+    },
+    "0-15|*|-1": {
+      "goal_home": 0,
+      "goal_away": 4,
+      "card": 6,
+      "quiet": 2
+    },
+    "15-30|0|-2": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 0,
+      "quiet": 18
+    },
+    "15-30|*|-2": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 5,
+      "quiet": 18
+    },
+    "30-45|0|-2": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 6,
+      "quiet": 23
+    },
+    "30-45|*|-2": {
+      "goal_home": 10,
+      "goal_away": 10,
+      "card": 10,
+      "quiet": 24
+    },
+    "0-15|0|1": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 1,
+      "quiet": 0
+    },
+    "0-15|*|1": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 1,
+      "quiet": 0
+    },
+    "30-45|1|2": {
+      "goal_home": 0,
+      "goal_away": 5,
+      "card": 0,
+      "quiet": 0
+    },
+    "15-30|1|-1": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 10
+    },
+    "30-45|1|-1": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 2,
+      "quiet": 3
+    },
+    "30-45|-2|-1": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 0,
+      "quiet": 5
+    },
+    "30-45|-2|*": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 0,
+      "quiet": 5
+    },
+    "45-60|-3|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 15
+    },
+    "45-60|-3|*": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 15
+    },
+    "60-75|-3|-1": {
+      "goal_home": 10,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 1
+    },
+    "60-75|-2|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 4,
+      "quiet": 0
+    },
+    "75+|-2|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 0
+    },
+    "75+|-2|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 7
+    },
+    "45-60|2|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 7,
+      "quiet": 5
+    },
+    "60-75|2|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 0
+    },
+    "45-60|1|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 0
+    },
+    "30-45|-1|-2": {
+      "goal_home": 7,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 1
+    },
+    "45-60|-2|0": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 4
+    },
+    "60-75|-2|0": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 12
+    },
+    "75+|-2|-1": {
+      "goal_home": 2,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "75+|1|-2": {
+      "goal_home": 7,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 0
+    },
+    "15-30|2|1": {
+      "goal_home": 2,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "30-45|2|1": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "30-45|3|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 7,
+      "quiet": 5
+    },
+    "45-60|3|1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 0
+    },
+    "45-60|3|2": {
+      "goal_home": 0,
+      "goal_away": 3,
+      "card": 0,
+      "quiet": 0
+    },
+    "75+|3|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 6
+    },
+    "0-15|1|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 0
+    },
+    "0-15|1|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 1,
+      "quiet": 0
+    },
+    "0-15|*|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 1,
+      "quiet": 0
+    },
+    "15-30|1|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 5,
+      "quiet": 0
+    },
+    "15-30|1|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 8
+    },
+    "15-30|*|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 8
+    },
+    "30-45|1|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 0
+    },
+    "30-45|*|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 0
+    },
+    "30-45|1|-2": {
+      "goal_home": 3,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "30-45|2|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 4,
+      "quiet": 0
+    },
+    "45-60|2|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 6,
+      "quiet": 0
+    },
+    "60-75|2|-1": {
+      "goal_home": 13,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "60-75|3|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 8,
+      "quiet": 0
+    },
+    "60-75|3|-3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 1
+    },
+    "75+|3|-3": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 0,
+      "quiet": 1
+    },
+    "60-75|1|2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 10,
+      "quiet": 3
+    },
+    "60-75|1|3": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 2,
+      "quiet": 0
+    },
+    "60-75|-1|-2": {
+      "goal_home": 4,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 0
+    },
+    "15-30|2|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 0,
+      "quiet": 6
+    },
+    "30-45|2|-1": {
+      "goal_home": 0,
+      "goal_away": 10,
+      "card": 0,
+      "quiet": 3
+    },
+    "60-75|2|-2": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 6,
+      "quiet": 0
+    },
+    "75+|3|-1": {
+      "goal_home": 0,
+      "goal_away": 0,
+      "card": 3,
+      "quiet": 0
+    }
+  },
+  "support": {
+    "0-15|0|0": 628,
+    "0-15|0|*": 642,
+    "0-15|*|0": 703,
+    "0-15|*|*": 720,
+    "global|*|*": 4320,
+    "15-30|0|0": 383,
+    "15-30|0|*": 516,
+    "15-30|*|0": 513,
+    "15-30|*|*": 720,
+    "15-30|0|1": 59,
+    "15-30|*|1": 79,
+    "15-30|0|2": 8,
+    "15-30|*|2": 8,
+    "30-45|0|2": 12,
+    "30-45|0|*": 439,
+    "30-45|*|2": 17,
+    "30-45|*|*": 720,
+    "30-45|0|1": 91,
+    "30-45|*|1": 156,
+    "45-60|0|1": 83,
+    "45-60|0|*": 344,
+    "45-60|*|1": 162,
+    "45-60|*|*": 720,
+    "60-75|0|1": 72,
+    "60-75|0|*": 367,
+    "60-75|*|1": 159,
+    "60-75|*|*": 720,
+    "60-75|-1|1": 18,
+    "60-75|-1|*": 61,
+    "75+|-1|1": 18,
+    "75+|-1|*": 49,
+    "75+|*|1": 111,
+    "75+|*|*": 720,
+    "75+|-1|0": 30,
+    "75+|*|0": 208,
+    "15-30|0|-1": 45,
+    "15-30|*|-1": 84,
+    "30-45|0|-1": 99,
+    "30-45|*|-1": 173,
+    "45-60|0|-1": 105,
+    "45-60|*|-1": 164,
+    "60-75|1|1": 31,
+    "60-75|1|*": 121,
+    "75+|1|1": 51,
+    "75+|1|*": 169,
+    "0-15|1|0": 36,
+    "0-15|1|*": 39,
+    "30-45|0|0": 198,
+    "30-45|*|0": 305,
+    "45-60|1|0": 52,
+    "45-60|1|*": 137,
+    "45-60|*|0": 187,
+    "60-75|1|0": 22,
+    "60-75|*|0": 190,
+    "60-75|0|0": 105,
+    "60-75|-1|0": 19,
+    "75+|0|0": 64,
+    "75+|0|*": 272,
+    "75+|0|1": 24,
+    "45-60|0|0": 57,
+    "75+|2|1": 3,
+    "75+|2|*": 130,
+    "75+|2|0": 49,
+    "60-75|0|-1": 18,
+    "60-75|*|-1": 56,
+    "15-30|1|0": 56,
+    "15-30|1|*": 102,
+    "30-45|1|0": 52,
+    "30-45|1|*": 121,
+    "45-60|1|1": 33,
+    "60-75|0|-2": 90,
+    "60-75|*|-2": 144,
+    "75+|0|-2": 54,
+    "75+|*|-2": 75,
+    "0-15|-1|0": 37,
+    "0-15|-1|*": 37,
+    "15-30|-1|0": 53,
+    "15-30|-1|*": 73,
+    "30-45|-1|0": 28,
+    "30-45|-1|*": 84,
+    "45-60|-1|0": 44,
+    "45-60|-1|*": 115,
+    "45-60|-1|-1": 15,
+    "60-75|-1|-1": 8,
+    "75+|0|-1": 15,
+    "75+|*|-1": 53,
+    "30-45|-1|1": 17,
+    "45-60|-1|1": 27,
+    "45-60|-1|2": 7,
+    "45-60|*|2": 49,
+    "60-75|-1|2": 12,
+    "60-75|*|2": 77,
+    "60-75|-2|2": 3,
+    "60-75|-2|*": 46,
+    "75+|-2|2": 4,
+    "75+|-2|*": 50,
+    "75+|*|2": 48,
+    "75+|-2|0": 18,
+    "45-60|0|2": 22,
+    "60-75|0|2": 21,
+    "60-75|0|3": 9,
+    "60-75|*|3": 26,
+    "75+|0|3": 30,
+    "75+|*|3": 88,
+    "75+|1|3": 14,
+    "75+|2|3": 32,
+    "60-75|2|0": 29,
+    "60-75|2|*": 92,
+    "75+|3|0": 14,
+    "75+|3|*": 38,
+    "30-45|1|1": 33,
+    "45-60|1|-2": 17,
+    "45-60|*|-2": 111,
+    "60-75|1|-2": 36,
+    "60-75|1|-3": 15,
+    "60-75|*|-3": 68,
+    "75+|0|-3": 79,
+    "75+|*|-3": 137,
+    "75+|1|2": 17,
+    "15-30|1|1": 18,
+    "30-45|1|3": 5,
+    "30-45|*|3": 7,
+    "30-45|2|3": 2,
+    "30-45|2|*": 46,
+    "45-60|2|3": 19,
+    "45-60|2|*": 89,
+    "45-60|*|3": 25,
+    "45-60|2|2": 13,
+    "60-75|2|2": 28,
+    "75+|2|2": 14,
+    "45-60|0|-2": 63,
+    "45-60|0|-3": 14,
+    "45-60|*|-3": 22,
+    "60-75|0|-3": 52,
+    "45-60|1|2": 4,
+    "45-60|3|3": 6,
+    "45-60|3|*": 12,
+    "60-75|3|3": 9,
+    "60-75|3|*": 18,
+    "60-75|2|3": 6,
+    "75+|3|3": 4,
+    "45-60|1|-1": 23,
+    "60-75|1|-1": 2,
+    "75+|1|-1": 25,
+    "15-30|-1|-1": 20,
+    "30-45|-1|-1": 31,
+    "45-60|-1|-2": 22,
+    "75+|1|-3": 19,
+    "75+|2|-3": 21,
+    "75+|2|-2": 3,
+    "75+|2|-1": 8,
+    "0-15|2|0": 2,
+    "0-15|2|*": 2,
+    "15-30|2|0": 21,
+    "15-30|2|*": 29,
+    "30-45|2|0": 24,
+    "30-45|3|0": 3,
+    "30-45|3|*": 15,
+    "45-60|2|0": 30,
+    "45-60|2|-2": 9,
+    "75+|1|0": 33,
+    "75+|-1|2": 1,
+    "45-60|-2|1": 4,
+    "45-60|-2|*": 8,
+    "60-75|-2|1": 24,
+    "75+|-2|1": 8,
+    "60-75|-3|1": 4,
+    "60-75|-3|*": 15,
+    "75+|-3|1": 7,
+    "75+|-3|*": 12,
+    "75+|-3|3": 5,
+    "75+|-2|3": 3,
+    "75+|0|2": 6,
+    "0-15|0|-1": 10,
+    "0-15|*|-1": 12,
+    "15-30|0|-2": 21,
+    "15-30|*|-2": 26,
+    "30-45|0|-2": 39,
+    "30-45|*|-2": 54,
+    "0-15|0|1": 4,
+    "0-15|*|1": 4,
+    "30-45|1|2": 5,
+    "15-30|1|-1": 13,
+    "30-45|1|-1": 15,
+    "30-45|-2|-1": 15,
+    "30-45|-2|*": 15,
+    "45-60|-3|-1": 15,
+    "45-60|-3|*": 15,
+    "60-75|-3|-1": 11,
+    "60-75|-2|-1": 4,
+    "75+|-2|-2": 8,
+    "75+|-2|-3": 7,
+    "45-60|2|1": 12,
+    "60-75|2|1": 10,
+    "45-60|1|-3": 8,
+    "30-45|-1|-2": 8,
+    "45-60|-2|0": 4,
+    "60-75|-2|0": 15,
+    "75+|-2|-1": 2,
+    "75+|1|-2": 10,
+    "15-30|2|1": 2,
+    "30-45|2|1": 3,
+    "30-45|3|1": 12,
+    "45-60|3|1": 3,
+    "45-60|3|2": 3,
+    "75+|3|2": 6,
+    "0-15|1|-1": 2,
+    "0-15|1|-2": 1,
+    "0-15|*|-2": 1,
+    "15-30|1|-2": 5,
+    "15-30|1|-3": 10,
+    "15-30|*|-3": 10,
+    "30-45|1|-3": 8,
+    "30-45|*|-3": 8,
+    "30-45|1|-2": 3,
+    "30-45|2|-2": 4,
+    "45-60|2|-1": 6,
+    "60-75|2|-1": 13,
+    "60-75|3|-2": 8,
+    "60-75|3|-3": 1,
+    "75+|3|-3": 11,
+    "60-75|1|2": 13,
+    "60-75|1|3": 2,
+    "60-75|-1|-2": 4,
+    "15-30|2|-1": 6,
+    "30-45|2|-1": 13,
+    "60-75|2|-2": 6,
+    "75+|3|-1": 3
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "name": "sweeper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sweeper × N+1 Machine — live TxLINE Horizons, autonomous trading agents, and proof-backed replay.",
+  "scripts": {
+    "dev": "next dev",
+    "dev:live": "TXLINE_MODE=live next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "agent": "tsx lib/runner/cli.ts",
+    "demo": "tsx scripts/demo.ts",
+    "horizon:train": "tsx scripts/horizon-train.ts",
+    "horizon:bootstrap": "tsx scripts/horizon-bootstrap.ts",
+    "preflight:live": "tsx scripts/preflight-live.ts",
+    "soak:live": "tsx scripts/soak-live.ts",
+    "share:live": "cloudflared tunnel --url http://localhost:3000",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.5.0",
+    "@solana/web3.js": "^1.95.4",
+    "next": "15.5.20",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^15.5.20",
+    "postcss": "8.5.10",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "postcss": "8.5.10",
+    "uuid": "11.1.1"
+  }
+}

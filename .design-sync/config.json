@@ -1,0 +1,36 @@
+{
+  "projectId": "9ced80a5-444d-405a-8f83-469dc06ff016",
+  "shape": "package",
+  "pkg": "sweeper",
+  "globalName": "Sweeper",
+  "srcDir": "components",
+  "tsconfig": "tsconfig.json",
+  "buildCmd": "node .ds-sync/node_modules/.bin/tailwindcss -i app/globals.css -o .design-sync/_compiled.css --minify",
+  "cssEntry": ".design-sync/_compiled.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "ProofModal": { "cardMode": "single", "primaryStory": "Verified", "viewport": "700x600" },
+    "Arena": { "cardMode": "column" },
+    "AuditTrail": { "cardMode": "column" },
+    "EquityChart": { "cardMode": "column" },
+    "OddsBoard": { "cardMode": "column" },
+    "ReplayLab": { "cardMode": "column" },
+    "ScoreHeader": { "cardMode": "column" },
+    "SentinelFeed": { "cardMode": "column" }
+  },
+  "dtsPropsFor": {
+    "Sparkline": "/** Series of values to plot. */\n  values: number[];\n  /** Stroke color (defaults to the cyan token). */\n  color?: string;\n  width?: number;\n  height?: number;",
+    "EquityChart": "/** One polyline per agent/strategy. */\n  series: { name: string; color: string; equity: number[] }[];\n  width?: number;\n  height?: number;\n  /** Optional dashed reference line (e.g. starting bankroll). */\n  baseline?: number;",
+    "QualityGauge": "/** Market-quality score, 0..100. */\n  value: number;\n  size?: number;",
+    "ScoreHeader": "/** The serializable engine state the dashboard renders. */\n  state: {\n    status: \"idle\" | \"running\" | \"finished\";\n    mode: \"simulation\" | \"live\";\n    quality: number;\n    fixture: { home: string; away: string; stage: string; competition: string };\n    progress: { tick: number; total: number; pct: number };\n    current: {\n      homeGoals: number;\n      awayGoals: number;\n      clock: string;\n      phaseLabel: string;\n      suspended: boolean;\n      anomaly?: string;\n    } | null;\n  };",
+    "Controls": "/** Selectable fixtures for the run. */\n  fixtures: { id: string; home: string; away: string; homeCode: string; awayCode: string; stage: string; status: string }[];\n  status: \"idle\" | \"running\" | \"finished\";\n  /** Whether Solana devnet anchoring is configured server-side. */\n  anchorReady: boolean;",
+    "OddsBoard": "/** Latest market tick, or null while awaiting the feed. */\n  tick: {\n    markets: {\n      type: string;\n      label: string;\n      line?: number;\n      selections: {\n        key: string;\n        label: string;\n        prob: number;\n        decimal: number;\n        fairProb: number;\n        z: number;\n        prevPrice: number;\n        stale: boolean;\n      }[];\n    }[];\n    events: { kind: string; label: string; minute: number }[];\n  } | null;",
+    "SentinelFeed": "/** Live sentinel signals, newest last. */\n  signals: {\n    id: string;\n    kind: \"sharp_move\" | \"stale_line\" | \"outlier_print\" | \"suspended\" | \"reopened\" | \"settlement_hold\";\n    severity: \"info\" | \"warning\" | \"critical\";\n    confidence: number;\n    action: string;\n    message: string;\n  }[];\n  /** Running count per signal kind. */\n  counts: {\n    sharp_move: number;\n    stale_line: number;\n    outlier_print: number;\n    suspended: number;\n    reopened: number;\n    settlement_hold: number;\n  };",
+    "Arena": "/** Competing agents; ranked by equity internally. */\n  agents: {\n    id: string;\n    name: string;\n    mode: \"taker\" | \"maker\";\n    lastRationale: string;\n    curve: number[];\n    metrics: {\n      equity: number;\n      pnl: number;\n      roi: number;\n      trades: number;\n      hitRate: number;\n      maxDrawdown: number;\n    };\n  }[];\n  /** Id of the leading agent, or null. */\n  leader: string | null;",
+    "AuditTrail": "/** Merkle audit ledger summary + recent records. */\n  ledger: {\n    size: number;\n    root: string;\n    recent: { seq: number; kind: string; summary: string; hash: string }[];\n    anchor: { sig: string; url: string; root: string } | null;\n  };\n  status: \"idle\" | \"running\" | \"finished\";\n  /** Called with a record seq to open its inclusion proof. */\n  onProof: (seq: number) => void;",
+    "ProofModal": "/** Ledger record sequence to prove. */\n  seq: number;\n  onClose: () => void;",
+    "SettlementCard": "/** Settlement receipt, or null before the match resolves. */\n  settlement: {\n    match: string;\n    status: \"ok\" | \"hold\" | string;\n    reason?: string;\n    finalScore: { home: number; away: number };\n    resolved: { marketType: string; resolvedKey: string; detail: string }[];\n    proof: {\n      source: string;\n      verified: boolean;\n      endpoint?: string;\n      statKeys: string[];\n      root: string;\n    };\n  } | null;",
+    "ReplayLab": "/** Selectable fixtures for the deterministic re-simulation. */\n  fixtures: { id: string; home: string; away: string; homeCode: string; awayCode: string; stage: string; status: string }[];",
+    "Empty": "/** Placeholder label shown in an empty panel. */\n  label: string;"
+  }
+}
