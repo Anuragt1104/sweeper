@@ -1,15 +1,14 @@
 /**
  * Value agent — the "smart money" baseline.
  *
- * Holds a model fair price (in live mode this is the desk's own pricing model;
- * in simulation it is the generator's clean fair). It targets exposure
- * proportional to the edge between fair and the observed consensus price, with a
- * deadband to avoid churning. This is a legitimately positive-EV strategy: it
- * picks off lines that have drifted from fair. It deliberately does NOT consult
+ * Trades deviations between the observed price and an explicitly-provenanced
+ * reference. In live mode the reference is filtered TxLINE consensus, not an
+ * independent claim of fair value. It deliberately does NOT consult
  * the sentinel, so it serves as the reference any guarded agent must beat.
  */
 import {
   makeOrder,
+  standDownDecision,
   TAKER_SELECTIONS,
   type Agent,
   type AgentContext,
@@ -17,29 +16,27 @@ import {
   type Order,
 } from "@/lib/agents/types";
 import { selId } from "@/lib/market/ids";
-import { clamp, deltaToOrder, fairProb, MIN_TRADE, obsProb } from "@/lib/agents/util";
+import { clamp, deltaToOrder, referenceProb, MIN_TRADE, obsProb } from "@/lib/agents/util";
 
 export class ValueAgent implements Agent {
   readonly id = "value";
   readonly name = "Value";
   readonly kind = "value";
-  readonly blurb = "Targets exposure proportional to the edge between model fair and the observed price.";
+  readonly blurb = "Trades deviations from the robust consensus reference; no positive-EV claim is implied.";
   readonly mode = "taker" as const;
 
   reset() {}
 
   onTick(ctx: AgentContext): Decision {
     const { tick, cfg } = ctx;
-    if (tick.suspended) {
-      return { agentId: this.id, seq: tick.seq, tsMs: tick.tsMs, orders: [], quotes: [], rationale: "Book suspended" };
-    }
+    if (ctx.readiness && !ctx.readiness.ready) return standDownDecision(this.id, tick, ctx.readiness.reasons);
     const edgeTh = cfg.strategy.valueEdge;
     const base = cfg.execution.baseSize;
     const orders: Order[] = [];
 
     for (const s of TAKER_SELECTIONS) {
       const obs = obsProb(tick, s.marketType, s.key);
-      const fair = fairProb(tick, s.marketType, s.key);
+      const fair = referenceProb(tick, s.marketType, s.key);
       if (obs == null || fair == null) continue;
       const id = selId(s.marketType, s.key);
       const edge = fair - obs;
@@ -54,7 +51,7 @@ export class ValueAgent implements Agent {
       if (!d) continue;
       orders.push(
         makeOrder(this.id, tick, s.marketType, s.key, id, d.side, obs, d.size,
-          `${d.side} ${d.size} ${s.key}: edge ${(edge * 100).toFixed(1)}pp (fair ${(fair * 100).toFixed(0)}% vs ${(obs * 100).toFixed(0)}%)`),
+          `${d.side} ${d.size} ${s.key}: deviation ${(edge * 100).toFixed(1)}pp (reference ${(fair * 100).toFixed(0)}% vs observed ${(obs * 100).toFixed(0)}%)`),
       );
     }
 

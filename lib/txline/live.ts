@@ -10,9 +10,10 @@ import {
   type NormalizedScoreRecord,
 } from "@/lib/txline/normalize";
 import type { TxLineSource } from "@/lib/txline/source";
-import { MatchSimulation } from "@/lib/txline/simulation";
 import type { Fixture, OddsSnapshot, ScoreSnapshot } from "@/lib/txline/types";
 import { getApiToken, getGuestJwt, refreshJwt, txlineBase, txlineHeaders } from "@/lib/txline/auth";
+import type { ReferencePricingModel } from "@/lib/pricing/types";
+import { TxlineConsensusReference } from "@/lib/pricing/txline-consensus-reference";
 
 const WORLD_CUP_COMPETITION_ID = process.env.TXLINE_COMPETITION_ID;
 const HEARTBEAT_MS = 30_000;
@@ -149,16 +150,18 @@ export interface LiveTickResult {
 /** Combines independently updating score and odds snapshots into MarketTicks. */
 export class LiveTickAssembler {
   private readonly scores: ScoreSequence;
-  private readonly simulation: MatchSimulation;
+  private readonly pricing: ReferencePricingModel;
   private score: ScoreSnapshot | null = null;
   private odds: OddsSnapshot | null = null;
   private oddsRecords: unknown[] = [];
   private localSeq = 0;
   private lastTickTsMs = 0;
+  private lastScoreEventId = "";
+  private lastOddsEventId = "";
 
-  constructor(private readonly fixture: Fixture) {
+  constructor(private readonly fixture: Fixture, pricing: ReferencePricingModel = new TxlineConsensusReference()) {
     this.scores = new ScoreSequence(fixture);
-    this.simulation = new MatchSimulation(fixture);
+    this.pricing = pricing;
   }
 
   hydrate(scoreRecords: NormalizedScoreRecord[], oddsRecords: unknown[]): MarketTick {
@@ -172,11 +175,12 @@ export class LiveTickAssembler {
     return this.buildTick([], Math.max(timestamp(this.score.ts), timestamp(this.odds.ts)));
   }
 
-  acceptScore(record: NormalizedScoreRecord): LiveTickResult {
+  acceptScore(record: NormalizedScoreRecord, eventId = ""): LiveTickResult {
     const result = this.scores.accept(record);
     if (!result.accepted || !result.snapshot) {
-      return { tick: null, gap: null, correction: false, finalised: result.finalised };
+      return { tick: null, gap: result.gap, correction: false, finalised: result.finalised };
     }
+    if (eventId) this.lastScoreEventId = eventId;
     this.score = result.snapshot;
     return {
       tick: this.odds ? this.buildTick(result.events, timestamp(result.snapshot.ts)) : null,
@@ -186,13 +190,25 @@ export class LiveTickAssembler {
     };
   }
 
-  acceptOdds(raw: unknown): MarketTick | null {
+  acceptOdds(raw: unknown, eventId = ""): MarketTick | null {
     // Validate each frame before retaining it; malformed frames never mutate state.
     normalizeOddsRecords([raw], this.fixture, this.localSeq + 1);
     this.oddsRecords = [...this.oddsRecords, raw].slice(-500);
+    if (eventId) this.lastOddsEventId = eventId;
     const next = normalizeOddsRecords(this.oddsRecords, this.fixture, this.localSeq + 1, this.odds ?? undefined);
     this.odds = next;
     return this.score ? this.buildTick([], timestamp(next.ts)) : null;
+  }
+
+  /** Replay authoritative records without stepping over an unresolved gap. */
+  recoverScores(records: NormalizedScoreRecord[]): LiveTickResult {
+    let latest: LiveTickResult = { tick: null, gap: null, correction: false, finalised: false };
+    for (const record of [...records].sort((a, b) => a.snapshot.seq - b.snapshot.seq)) {
+      const result = this.acceptScore(record);
+      if (result.gap) return result;
+      if (result.tick) latest = result;
+    }
+    return latest;
   }
 
   heartbeat(now = Date.now()): MarketTick | null {
@@ -205,7 +221,7 @@ export class LiveTickAssembler {
     const tsMs = Math.max(this.lastTickTsMs, upstreamTsMs);
     this.lastTickTsMs = tsMs;
     this.localSeq = Math.max(this.localSeq + 1, score.seq);
-    const fair = this.simulation.oddsSnapshot(score.minute, score, this.localSeq, new Date(tsMs).toISOString());
+    const reference = this.pricing.update({ fixture: this.fixture, score, odds, events, tsMs });
     return {
       fixtureId: this.fixture.id,
       seq: this.localSeq,
@@ -213,14 +229,18 @@ export class LiveTickAssembler {
       minute: score.minute,
       phase: score.phase,
       score,
-      suspended: false,
+      suspended: odds.lifecycle?.suspended ?? false,
       odds: { ...odds, seq: this.localSeq },
-      fair,
+      reference: reference.snapshot,
+      pricing: reference.provenance,
       events,
       upstream: {
         scoreSeq: score.seq,
         scoreTsMs: timestamp(score.ts),
         oddsTsMs: timestamp(odds.ts),
+        oddsMessageId: odds.upstream?.messageIds.at(-1),
+        scoreEventId: this.lastScoreEventId || undefined,
+        oddsEventId: this.lastOddsEventId || undefined,
         heartbeat,
       },
     };
@@ -230,13 +250,15 @@ export class LiveTickAssembler {
 export type LiveStreamKind = "score" | "odds";
 
 export interface LiveFeedHandlers {
-  onScore(record: NormalizedScoreRecord): void;
-  onOdds(raw: unknown): void;
+  onScore(record: NormalizedScoreRecord, eventId?: string): void;
+  onOdds(raw: unknown, eventId?: string): void;
   onAccepted?(kind: LiveStreamKind): void;
   onReconnect?(kind: LiveStreamKind, count: number): void;
   onMalformed?(kind: LiveStreamKind, error: unknown): void;
   onFatal?(kind: LiveStreamKind, error: unknown): void;
   onError?(kind: LiveStreamKind, error: unknown): void;
+  onCursor?(kind: LiveStreamKind, eventId: string, reconnectCount: number): void;
+  initialEventIds?: Partial<Record<LiveStreamKind, string>>;
 }
 
 export interface LiveFeedHandle {
@@ -278,7 +300,7 @@ export async function openLiveMatchFeed(
 
   const run = async (kind: LiveStreamKind) => {
     const path = `/api/${kind === "score" ? "scores" : "odds"}/stream?fixtureId=${fixture.id}`;
-    let lastEventId = "";
+    let lastEventId = handlers.initialEventIds?.[kind] ?? "";
     let reconnects = 0;
     let failures = 0;
     while (!controller.signal.aborted) {
@@ -308,17 +330,20 @@ export async function openLiveMatchFeed(
         accepted.add(kind);
         handlers.onAccepted?.(kind);
         if (accepted.size === 2) resolveAccepted();
-        lastEventId = await consumeSse(response.body, lastEventId, (json) => {
+        lastEventId = await consumeSse(response.body, lastEventId, (json, eventId) => {
           try {
-            if (kind === "score") handlers.onScore(normalizeScoreRecord(json, fixture));
+            if (kind === "score") handlers.onScore(normalizeScoreRecord(json, fixture), eventId);
             else {
               normalizeOddsRecords([json], fixture, 0);
-              handlers.onOdds(json);
+              handlers.onOdds(json, eventId);
             }
           } catch (error) {
             handlers.onMalformed?.(kind, error);
           }
-        }, (id) => { lastEventId = id; });
+        }, (id) => {
+          lastEventId = id;
+          handlers.onCursor?.(kind, id, reconnects);
+        });
         if (controller.signal.aborted) return;
         reconnects += 1;
         handlers.onReconnect?.(kind, reconnects);
@@ -342,7 +367,7 @@ export async function openLiveMatchFeed(
 export async function consumeSse(
   body: ReadableStream<Uint8Array>,
   initialId: string,
-  onData: (json: unknown) => void,
+  onData: (json: unknown, eventId: string) => void,
   onId?: (id: string) => void,
 ): Promise<string> {
   const reader = body.getReader();
@@ -367,9 +392,9 @@ export async function consumeSse(
       const data = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
       if (!data) continue;
       try {
-        onData(JSON.parse(data));
+        onData(JSON.parse(data), latestId);
       } catch {
-        onData(undefined);
+        onData(undefined, latestId);
       }
     }
   }

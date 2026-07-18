@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { authorizeControl } from "../lib/server/control";
+import { mutationRateLimit } from "../lib/server/rate-limit";
 
 test("control mutations require configured and matching X-Control-Key", () => {
   const previous = process.env.SWEEPER_CONTROL_KEY;
@@ -25,4 +26,12 @@ test("control mutations require configured and matching X-Control-Key", () => {
     if (previous === undefined) delete process.env.SWEEPER_CONTROL_KEY;
     else process.env.SWEEPER_CONTROL_KEY = previous;
   }
+});
+
+test("mutation rate limit allows ten requests per forwarded client IP", async () => {
+  const request = new Request("http://local", { headers: { "x-forwarded-for": "203.0.113.77, 10.0.0.1" } });
+  for (let count = 0; count < 10; count += 1) assert.equal(mutationRateLimit(request, 1_000), null);
+  const rejected = mutationRateLimit(request, 1_000);
+  assert.equal(rejected?.status, 429);
+  assert.equal(mutationRateLimit(request, 61_001), null);
 });

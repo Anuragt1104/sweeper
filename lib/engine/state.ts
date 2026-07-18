@@ -11,8 +11,58 @@ import type { SettlementReceipt } from "@/lib/proof/settlement";
 import type { AnomalyKind } from "@/lib/market/ticks";
 import type { HorizonState } from "@/lib/horizon/machine";
 import type { ShockStripState } from "@/lib/tempo/types";
+import type { PricingProvenance } from "@/lib/pricing/types";
+export type { PricingProvenance } from "@/lib/pricing/types";
+
+export const PUBLIC_SCHEMA_VERSION = 2 as const;
+export type RunProvenance = "live" | "recorded_live" | "simulation";
+export type ExecutionMode = "shadow" | "simulated";
 
 export type RunStatus = "idle" | "running" | "finished";
+
+export interface TradeReadiness {
+  ready: boolean;
+  reasons: string[];
+  checkedAtMs: number;
+  scoreAgeMs: number | null;
+  oddsAgeMs: number | null;
+}
+
+export type SupervisorState =
+  | "booting"
+  | "awaiting_fixture"
+  | "connecting"
+  | "watching"
+  | "settling"
+  | "completed"
+  | "failed";
+
+export interface SupervisorStatus {
+  state: SupervisorState;
+  detail: string;
+  activeFixtureId: string | null;
+  nextFixtureId: string | null;
+  competitionId: string | null;
+  updatedAtMs: number;
+}
+
+export interface StreamCursor {
+  fixtureId: string;
+  kind: "score" | "odds";
+  lastEventId: string;
+  reconnectCount: number;
+  updatedAtMs: number;
+}
+
+export interface RecordingSummary {
+  sessionId: string;
+  fixtureId: string;
+  match: string;
+  startedAtMs: number;
+  completedAtMs: number | null;
+  tickCount: number;
+  proofVerified: boolean;
+}
 
 export interface SelectionView {
   marketType: OddsMarketType;
@@ -22,7 +72,7 @@ export interface SelectionView {
   price: number;
   prevPrice: number;
   decimal: number;
-  fairProb: number;
+  referenceProb: number;
   movement: "up" | "down" | "flat";
   z: number;
   vol: number;
@@ -55,6 +105,8 @@ export interface TickView {
   quality: number;
   markets: MarketView[];
   events: { kind: string; label: string; minute: number }[];
+  pricing: PricingProvenance;
+  readiness: TradeReadiness;
   /** ground-truth injected anomaly (replay transparency only). */
   anomaly?: AnomalyKind;
 }
@@ -77,6 +129,7 @@ export interface AgentView {
   metrics: PortfolioMetrics;
   positions: PositionView[];
   lastRationale: string;
+  stoodDown: boolean;
   curve: number[];
 }
 
@@ -114,11 +167,16 @@ export interface FeedHealth {
 }
 
 export interface EngineState {
+  schemaVersion: typeof PUBLIC_SCHEMA_VERSION;
   sessionId: string;
   status: RunStatus;
-  mode: "simulation" | "live";
+  provenance: RunProvenance;
+  executionMode: ExecutionMode;
+  /** Compatibility alias for older clients; use provenance in schema v2. */
+  mode: RunProvenance;
   fixture: {
     id: string;
+    competitionId?: string;
     home: string;
     away: string;
     homeCode: string;
@@ -137,6 +195,8 @@ export interface EngineState {
   ledger: { size: number; root: string; recent: LedgerView[]; anchor: AnchorInfo | null };
   settlement: SettlementReceipt | null;
   feedHealth: FeedHealth;
+  tradeReadiness: TradeReadiness;
+  supervisor: SupervisorStatus | null;
   horizon: HorizonState;
   /** Dual-track shock strip — material (TxLINE) + tempo enrichment (non-settlement). */
   shockStrip: ShockStripState;

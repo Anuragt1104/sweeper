@@ -1,14 +1,20 @@
 import { manager, type StartOptions } from "@/lib/engine/manager";
 import { authorizeControl, controlError } from "@/lib/server/control";
+import { mutationRateLimit } from "@/lib/server/rate-limit";
+import { eventStore } from "@/lib/persistence/runtime-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return Response.json(manager().getState() ?? { status: "idle" }, { headers: { "Cache-Control": "no-store" } });
+  const current = manager().getState();
+  const persisted = current ? null : await eventStore().loadUnfinishedSession();
+  return Response.json(current ?? persisted?.latestState ?? { status: "idle" }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: Request) {
+  const limited = mutationRateLimit(req);
+  if (limited) return limited;
   const auth = authorizeControl(req);
   if (!auth.ok) return controlError(auth);
   const body = (await req.json().catch(() => ({}))) as { action?: string; options?: StartOptions };

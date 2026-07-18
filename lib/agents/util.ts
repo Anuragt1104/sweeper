@@ -11,12 +11,12 @@ export function obsProb(tick: MarketTick, marketType: OddsMarketType, key: strin
 export function obsPrice(tick: MarketTick, marketType: OddsMarketType, key: string): number | undefined {
   return find(tick, "odds", marketType, key)?.price;
 }
-export function fairProb(tick: MarketTick, marketType: OddsMarketType, key: string): number | undefined {
-  return find(tick, "fair", marketType, key)?.impliedProb;
+export function referenceProb(tick: MarketTick, marketType: OddsMarketType, key: string): number | undefined {
+  return find(tick, "reference", marketType, key)?.impliedProb;
 }
 
-function find(tick: MarketTick, which: "odds" | "fair", marketType: OddsMarketType, key: string) {
-  const snap = which === "odds" ? tick.odds : tick.fair;
+function find(tick: MarketTick, which: "odds" | "reference", marketType: OddsMarketType, key: string) {
+  const snap = which === "odds" ? tick.odds : tick.reference;
   const m = snap.markets.find((x) => x.type === marketType);
   return m?.selections.find((s) => s.key === key);
 }

@@ -27,7 +27,15 @@ export function HorizonExperience({ state, replayLabel = false }: { state: Engin
 
   const live = state?.mode === "live" && state.feedHealth.status === "live" && state.feedHealth.hydratedScore &&
     state.feedHealth.hydratedOdds && state.feedHealth.scoreStreamAccepted && state.feedHealth.oddsStreamAccepted;
-  const badge = replayLabel ? "REPLAY" : live ? "LIVE" : state?.mode === "simulation" ? "SIMULATION" : "NOT LIVE";
+  const badge = state?.provenance === "recorded_live"
+    ? "RECORDED LIVE"
+    : live
+      ? "LIVE"
+      : state?.mode === "simulation"
+        ? "SIMULATION"
+        : replayLabel
+          ? "REPLAY"
+          : "NOT LIVE";
   const remaining = current && state?.current ? Math.max(0, current.closesMinute - state.current.minute) : 0;
 
   return (

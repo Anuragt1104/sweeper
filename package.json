@@ -8,6 +8,8 @@
     "dev:live": "TXLINE_MODE=live next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
+    "start:live": "SWEEPER_AUTO_START_LIVE=true TXLINE_MODE=live next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "db:migrate": "node scripts/migrate.mjs",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
     "agent": "tsx lib/runner/cli.ts",
@@ -20,10 +22,15 @@
     "test": "node --import tsx --test test/*.test.ts",
     "test:e2e": "playwright test"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1",
     "@noble/hashes": "^1.5.0",
     "@solana/web3.js": "^1.95.4",
     "next": "15.5.20",
+    "pg": "^8.22.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "tweetnacl": "^1.0.3"
@@ -32,6 +39,7 @@
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^8.57.1",

@@ -53,7 +53,13 @@ export function ScoreHeader({ state }: { state: EngineState }) {
           <span className="chip">{c ? c.clock : "—"} · {c ? c.phaseLabel : "idle"}</span>
           {c?.suspended && <span className="chip text-crit border-crit/40">● SUSPENDED</span>}
           <span className="chip tnum">tick {state.progress.tick}/{state.progress.total}</span>
-          <span className="chip">{state.mode}</span>
+          <span className="chip font-semibold">
+            {state.provenance === "recorded_live" ? "RECORDED LIVE" : state.provenance.toUpperCase()}
+          </span>
+          <span className="chip text-cyan">{state.executionMode === "shadow" ? "SHADOW EXECUTION" : "SIMULATED EXECUTION"}</span>
+          {!state.tradeReadiness.ready && (
+            <span className="chip text-warn" title={state.tradeReadiness.reasons.join("; ")}>STAND DOWN</span>
+          )}
           {c?.anomaly && <span className="chip text-warn">inject: {c.anomaly}</span>}
         </div>
       </div>
@@ -94,7 +100,7 @@ export function Controls({
 
   useEffect(() => setMode(defaultMode), [defaultMode]);
   useEffect(() => {
-    if (!fixtureId && fixtures.some((fixture) => fixture.id === "18237038")) setFixtureId("18237038");
+    if (!fixtureId && fixtures[0]) setFixtureId(fixtures[0].id);
   }, [fixtureId, fixtures]);
 
   async function post(body: object) {
@@ -197,20 +203,20 @@ export function OddsBoard({ tick }: { tick: TickView | null }) {
                 <th className="text-left font-medium pb-1">Sel</th>
                 <th className="text-right font-medium pb-1">Prob</th>
                 <th className="text-right font-medium pb-1">Dec</th>
-                <th className="text-right font-medium pb-1">Fair</th>
+                <th className="text-right font-medium pb-1">Robust ref.</th>
                 <th className="text-right font-medium pb-1">z</th>
                 <th className="text-right font-medium pb-1"></th>
               </tr>
             </thead>
             <tbody className="tnum">
               {m.selections.map((s) => {
-                const off = Math.abs(s.prob - s.fairProb) > 0.04;
+                const off = Math.abs(s.prob - s.referenceProb) > 0.04;
                 return (
                   <tr key={s.key} className="row-hover border-t border-line/60">
                     <td className="py-1 text-left font-sans text-ink">{s.label}</td>
                     <td className={`py-1 text-right ${off ? "text-warn" : ""}`}>{(s.prob * 100).toFixed(1)}</td>
                     <td className="py-1 text-right text-muted">{s.decimal.toFixed(2)}</td>
-                    <td className="py-1 text-right text-faint">{(s.fairProb * 100).toFixed(1)}</td>
+                    <td className="py-1 text-right text-faint">{(s.referenceProb * 100).toFixed(1)}</td>
                     <td className={`py-1 text-right ${Math.abs(s.z) >= 3 ? "text-cyan" : "text-faint"}`}>{s.z.toFixed(1)}</td>
                     <td className="py-1 text-right pl-2">
                       {s.stale ? <span className="text-warn text-[10px]">STALE</span> : <ProbArrow prob={s.prob} prevPrice={s.prevPrice} />}
@@ -296,6 +302,7 @@ export function Arena({ agents, leader }: { agents: AgentView[]; leader: string 
                   <span className="font-medium">{a.name}</span>
                   {a.id === leader && <span className="chip text-brand text-[10px] py-0">▲ leader</span>}
                   <span className="chip text-[10px] py-0">{a.mode}</span>
+                  {a.stoodDown && <span className="chip text-warn text-[10px] py-0">stand-down</span>}
                 </div>
                 <div className="text-[10px] text-faint mt-0.5 max-w-[260px] truncate">{a.lastRationale}</div>
               </td>
@@ -430,7 +437,7 @@ export function SettlementCard({ settlement }: { settlement: EngineState["settle
       <div className="flex items-center justify-between mb-2">
         <div className="eyebrow">Settlement</div>
         <span className={`chip ${held ? "text-crit border-crit/40" : "text-up border-up/40"}`}>
-          {held ? "⏸ HELD" : "✓ SETTLED"}
+          {held ? "SETTLEMENT HELD" : settlement.txlineSettlementProof ? "PROOF VERIFIED" : "SETTLED"}
         </span>
       </div>
       <div className="text-lg font-bold tnum mb-1">
@@ -451,7 +458,48 @@ export function SettlementCard({ settlement }: { settlement: EngineState["settle
         {settlement.proof.endpoint && <div className="tnum text-faint truncate">{settlement.proof.endpoint}</div>}
         {settlement.reason && <div className="text-crit">{settlement.reason}</div>}
         <div className="text-faint">stat keys [{settlement.proof.statKeys.join(", ")}] · root {shortHash(settlement.proof.root, 8)}</div>
+        {settlement.txlineSettlementProof && (
+          <div className="text-up">
+            TxLINE mainnet · seq {settlement.txlineSettlementProof.finalSequence} · daily root {shortHash(settlement.txlineSettlementProof.dailyRootPda, 8)}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+export function CausalTrace({ state }: { state: EngineState }) {
+  const ordered = [...state.ledger.recent].reverse();
+  const latestFill = [...ordered].reverse().find((record) => record.kind === "fill");
+  const latestDecision = latestFill
+    ? [...ordered].reverse().find((record) => record.kind === "decision" && latestFill.reactedToHash === record.hash)
+    : [...ordered].reverse().find((record) => record.kind === "decision");
+  const latestSignal = [...ordered].reverse().find((record) => record.kind === "signal");
+  const latestTick = [...ordered].reverse().find((record) => record.kind === "tick");
+  const leader = state.agents.find((agent) => agent.id === state.leader);
+  const steps = [
+    { label: "TxLINE tick", value: latestTick ? shortHash(latestTick.hash, 8) : "awaiting observation" },
+    { label: "Sentinel", value: latestSignal?.summary ?? "no anomaly signal" },
+    { label: "Agent decision", value: latestDecision?.summary ?? (state.tradeReadiness.reasons.join("; ") || "standing by") },
+    { label: "Shadow fill", value: latestFill?.summary ?? "no fill" },
+    { label: "Current PnL", value: leader ? `${leader.name} ${signFmt(leader.metrics.pnl)}` : "no positions" },
+    {
+      label: "Proof",
+      value: state.settlement?.txlineSettlementProof
+        ? `mainnet verified · seq ${state.settlement.txlineSettlementProof.finalSequence}`
+        : state.settlement?.status === "hold"
+          ? "settlement held"
+          : `ledger ${shortHash(state.ledger.root, 8)}`,
+    },
+  ];
+  return (
+    <div className="causal-grid">
+      {steps.map((step, index) => (
+        <div key={step.label} className="causal-step">
+          <div className="eyebrow">{String(index + 1).padStart(2, "0")} · {step.label}</div>
+          <div className="text-xs text-muted mt-1 line-clamp-2">{step.value}</div>
+        </div>
+      ))}
     </div>
   );
 }

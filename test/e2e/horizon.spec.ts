@@ -30,9 +30,9 @@ test("operator starts simulation and public JSON matches the deck", async ({ pag
 });
 
 test("act2 manifests the known 41 minute goal and collapse", async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem("sweeper-control-key", "e2e-control"));
   await page.goto("/?demo=act2");
-  await expect(page.getByText(/ACT II playing/)).toBeVisible();
+  await expect(page.getByText(/ACT II public simulation/)).toBeVisible();
+  await expect(page.getByText("SPECTATOR")).toBeVisible();
   await expect(page.getByTestId("horizon-deck")).toBeVisible();
   await expect(page.getByText("HOME GOAL", { exact: true })).toBeVisible({ timeout: 12_000 });
   await expect(page.getByText(/transitions/)).toContainText(/[1-9]/);

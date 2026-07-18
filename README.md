@@ -1,15 +1,14 @@
 # Sweeper × N+1 Machine
 
-Sweeper is a Horizon-first TxLINE trading console. It continuously publishes a fixed ten-match-minute forecast for the next material soccer event while retaining the original Sentinel, five trading agents, paper exchange, Merkle audit proofs, proof-gated final settlement, and replay lab.
+Sweeper is a Horizon-first TxLINE trading console. It continuously publishes a fixed ten-match-minute forecast for the next material soccer event while retaining Sentinel, five trading agents, shadow/paper execution, Merkle audit proofs, official mainnet settlement verification, and replay.
 
-The four public outcomes are:
+Live means TxLINE mainnet level 12 only. Simulation and recorded-live replay are always labelled. Live execution is shadow-only (no real venue fills).
 
-- `goal_home`
-- `goal_away`
-- `card` (yellow or red)
-- `quiet`
+## Production
 
-Live means TxLINE mainnet level 12. If live hydration or either upstream stream fails, the UI says so and does not switch to simulation. Simulation and replay are always labelled.
+- **GitHub:** https://github.com/Anuragt1104/sweeper
+- **Railway (judge target):** https://sweeper-production-0ef9.up.railway.app
+- **Access deadline:** July 19, 2026 23:59 UTC
 
 ## Shock Strip (in progress)
 
@@ -18,123 +17,97 @@ Spatial memory under the Horizon Deck — three named strategies **Tempo · Odds
 - [`docs/shock-strip/README.md`](./docs/shock-strip/README.md)
 - [`docs/shock-strip/HANDOFF.md`](./docs/shock-strip/HANDOFF.md)
 
-## Tonight’s fixture
+Fixture supervisor queue:
 
-The default live fixture is France vs Spain, TxLINE fixture `18237038`, scheduled for 00:30 IST. Set the replacement/rotated TxLINE token only in `.env.local`; never commit it, print it, put it in a tunnel command, or send it to the browser.
+1. France–England `18257865`
+2. Spain–Argentina `18257739`
 
 ## Run locally in simulation
 
-Mutations require a shared control key even locally.
-
 ```bash
 cp .env.example .env.local
-# Set SWEEPER_CONTROL_KEY in .env.local and choose TXLINE_MODE=simulation.
+# Set SWEEPER_CONTROL_KEY and TXLINE_MODE=simulation
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`, enter the shared key in the operator field, choose Simulation, and start. Viewers without the key can read every public state and proof but cannot start, stop, anchor, or run replay mutations.
+Open `http://localhost:3000`. Public viewers need no key. Operators enter the shared key only for mutations.
 
-The deterministic demo link is:
+Deterministic demo:
 
 ```text
 http://localhost:3000/?demo=act2
 ```
 
-It opens Argentina–Poland at 39.5′ and plays through the known Argentina goal at 41′. Generic deep links use `?replay=<fixtureId>&t=<minute>&seed=<n>`.
+## Run TxLINE live locally
 
-## Run TxLINE live and share it
-
-1. Copy `.env.example` to `.env.local`.
-2. Set `TXLINE_API_TOKEN` to a newly rotated mainnet token with level-12 access.
-3. Set a strong `SWEEPER_CONTROL_KEY`.
-4. Verify schedule, snapshots, both SSE requests, 1X2 availability, and historical coverage:
+1. Copy `.env.example` → `.env.local`.
+2. Set a **rotated** mainnet level-12 `TXLINE_API_TOKEN`.
+3. Set `SWEEPER_CONTROL_KEY`, optional `DATABASE_URL`, and `TXLINE_WATCH_FIXTURE_IDS=18257865,18257739`.
+4. Preflight:
 
 ```bash
-npm run preflight:live
+npm run preflight:live -- --fixture auto
 ```
 
-5. Start the long-lived server on all laptop interfaces:
+5. Start:
 
 ```bash
+npm run start:live   # after npm run build
+# or
 npm run dev:live
 ```
 
-6. In another terminal, create the public HTTPS quick tunnel:
-
-```bash
-npm run share:live
-```
-
-Share only the generated HTTPS URL. Public users are spectators. The operator enters the shared key in the UI; it is held in `sessionStorage` and sent only as `X-Control-Key` on mutation requests.
-
-Keep the laptop awake and plugged in. The quick tunnel and Next process must remain running. Verify the tunnel from a second device before the match.
-
 ## Horizon rules
 
-- A Horizon opens for exactly ten match-minutes. A 30-second soft refresh can change probabilities and badges but never its close.
+- A Horizon opens for exactly ten match-minutes.
 - Probabilities are empirical bucket counts with Laplace smoothing `α=1` and always sum to 1.
-- THESIS is the maximum across all four outcomes. Exact ties retain the previous badge, then use catalog order for the first lock.
+- THESIS is the maximum across `goal_home`, `goal_away`, `card`, `quiet`.
 - ACTION equals a non-Quiet THESIS; when THESIS is Quiet, ACTION is the maximum material outcome.
-- The first sequence-ordered home goal, away goal, yellow, or red card settles the publication. Otherwise Quiet wins at the fixed close.
-- A winner with settling probability strictly below 15% is a SURPRISE. A different winner at 15% or above emits THESIS DEAD.
-- The odds-swing chip activates when the current home/away 1X2 favourite moves at least eight percentage points over 180 seconds with no goal in that lookback. It never settles the pie.
+- First sequence-ordered home goal / away goal / yellow / red settles the publication; otherwise Quiet at close.
+- Winner probability &lt; 15% ⇒ SURPRISE; different winner ≥ 15% ⇒ THESIS DEAD.
 
-See [Horizon rules](docs/HORIZON_RULES.md) for bucket and metric definitions.
-
-## Probability training
-
-`npm run horizon:train` fetches completed fixtures only from TxLINE’s documented six-hour-to-two-week historical window and writes `data/horizon-frequency.json`.
-
-```bash
-npm run horizon:train
-```
-
-Buckets use minute band, score difference clipped to `[-3,3]`, and card differential `(yellow + 2×red)` clipped to `[-3,3]`. Minimum support is 30. Fallback is exact → drop card difference → drop score difference → minute band → global.
-
-`data/horizon-bootstrap.json` is generated by `npm run horizon:bootstrap -- --write`. It is deterministic simulation data and is always shown as LOW DATA; it is never described as TxLINE historical training.
+See [Horizon rules](docs/HORIZON_RULES.md).
 
 ## Public APIs
 
-All read endpoints are public and `no-store`:
+Read endpoints are public and `no-store`:
 
-- `GET /api/stream` — complete `EngineState` over SSE
-- `GET /api/horizon` — active Horizon
-- `GET /api/fixtures/{fixtureId}/horizon` — fixture-scoped parity (`404`/`409` structured errors)
-- `GET /api/health` — process, credentials-present, upstream, and Horizon readiness without secret values
+- `GET /api/stream`, `/api/demo/act2/stream`, `/api/recordings`, `/api/recordings/{id}/stream`
+- `GET /api/horizon`, `/api/fixtures/{id}/horizon`
+- `GET /api/health`, `/api/health/live`, `/api/health/ready`
 - `GET /api/session`, `/api/fixtures`, `/api/proof/{seq}`
 
-`POST /api/session` and `POST /api/replay` require `X-Control-Key`.
+Mutations require `X-Control-Key` and are rate-limited.
 
 ## Verification
 
 ```bash
-npm test                 # 36 unit/integration tests
+npm test                 # unit/integration
 npm run typecheck
+npm run lint
 npm run build
-npm run test:e2e         # 4 Playwright flows
-npm run preflight:live   # needs rotated live credentials
-npm run soak:live        # 10-minute health/Horizon soak against localhost:3000
+npm run test:e2e
+npm run db:migrate       # needs DATABASE_URL
+npm run preflight:live
+npm run soak:live
 ```
-
-The live preflight and a ten-minute soak cannot pass without a valid replacement token. They intentionally fail instead of substituting simulation.
 
 ## Architecture
 
-`SweeperEngine.ingest(tick)` is the deterministic seam shared by simulation, replay, and live feed adapters. The Horizon module hides table fallback, normalization, badge locking, lifecycle, swing detection, collapse history, and metrics behind `processTick`.
-
 ```text
-simulation / replay / TxLINE SSE adapters
-                  │ normalized MarketTick
-                  ▼
-       SweeperEngine.ingest(tick)
-          ├─ HorizonMachine.processTick
-          ├─ Sentinel
-          ├─ five agents → paper exchange → portfolios
-          └─ Merkle audit ledger → proof-gated settlement
-                  │
-                  ▼
-       EngineState → /api/stream → Horizon-first UI
+TxLINE SSE / recorded / simulation
+            │ normalized MarketTick
+            ▼
+     EventStore (Postgres | memory)
+            ▼
+     SweeperEngine.ingest(tick)
+        ├─ HorizonMachine
+        ├─ Sentinel + five agents
+        ├─ readiness → shadow / simulated exchange
+        └─ Merkle ledger → validateStatV2 settlement
+            ▼
+     EngineState → SSE → spectator UI
 ```
 
-Detailed design and field mappings are in [architecture](docs/ARCHITECTURE.md) and [TxLINE endpoints](docs/TXLINE_ENDPOINTS.md).
+Details: [architecture](docs/ARCHITECTURE.md), [TxLINE endpoints](docs/TXLINE_ENDPOINTS.md), [submission](SUBMISSION.md).

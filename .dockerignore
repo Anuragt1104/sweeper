@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.vercel
+.env
+.env*.local
+.DS_Store
+test-results
+playwright-report
+.design-sync
+.claude
+.ds-sync
+ds-bundle
+runs/*.json
+runs/*.jsonl

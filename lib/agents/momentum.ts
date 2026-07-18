@@ -14,6 +14,7 @@
  */
 import {
   makeOrder,
+  standDownDecision,
   TAKER_SELECTIONS,
   type Agent,
   type AgentContext,
@@ -50,6 +51,7 @@ export class MomentumAgent implements Agent {
 
   onTick(ctx: AgentContext): Decision {
     const { tick, cfg, assessment, features } = ctx;
+    if (ctx.readiness && !ctx.readiness.ready) return standDownDecision(this.id, tick, ctx.readiness.reasons);
     const base = cfg.execution.baseSize;
     const cap = base * CAP_MULT;
 

@@ -1,9 +1,12 @@
 import { loadEnvConfig } from "@next/env";
 import { LiveSource, openLiveMatchFeed } from "../lib/txline/live";
+import { DEFAULT_WATCH_IDS, selectFixture } from "../lib/supervisor/fixture-supervisor";
 
 loadEnvConfig(process.cwd());
 
-const fixtureId = process.env.TXLINE_FIXTURE_ID ?? "18237038";
+const fixtureArg = process.argv.find((arg) => arg.startsWith("--fixture="))?.slice("--fixture=".length)
+  ?? (process.argv.includes("--fixture") ? process.argv[process.argv.indexOf("--fixture") + 1] : undefined)
+  ?? "auto";
 
 async function main() {
   if (!process.env.TXLINE_API_TOKEN?.trim() && !(process.env.TXLINE_HOST_SECRET_KEY && process.env.TXLINE_TX_SIG)) {
@@ -13,9 +16,18 @@ async function main() {
 
   const source = new LiveSource();
   const fixtures = await source.listFixtures();
-  const fixture = fixtures.find((candidate) => candidate.id === fixtureId);
-  if (!fixture) throw new Error(`Fixture ${fixtureId} is not present in the returned TxLINE schedule window.`);
+  const watchIds = (process.env.TXLINE_WATCH_FIXTURE_IDS?.split(",") ?? DEFAULT_WATCH_IDS)
+    .map((id) => id.trim()).filter(Boolean);
+  const stale = watchIds.filter((id) => !fixtures.some((fixture) => fixture.id === id));
+  if (fixtureArg === "auto" && stale.length) {
+    throw new Error(`Configured watched fixture IDs are absent/stale: ${stale.join(", ")}`);
+  }
+  const fixture = fixtureArg === "auto"
+    ? selectFixture(fixtures, { nowMs: Date.now(), watchIds, competitionId: process.env.TXLINE_COMPETITION_ID ?? null }).fixture
+    : fixtures.find((candidate) => candidate.id === fixtureArg);
+  if (!fixture) throw new Error(`Fixture ${fixtureArg} is not present or no eligible World Cup fixture was selected.`);
   console.log(`✓ fixture ${fixture.id}: ${fixture.home.name} vs ${fixture.away.name} · ${fixture.kickoff}`);
+  console.log(`✓ competition ${fixture.competition} · id ${fixture.competitionId ?? "not supplied"}`);
 
   const [scores, odds] = await Promise.all([source.getScoreRecords(fixture), source.getOddsSnapshot(fixture)]);
   if (scores.length === 0) throw new Error("Score hydration returned no records.");

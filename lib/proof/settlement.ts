@@ -15,6 +15,7 @@
  */
 import { GamePhase, type Fixture } from "@/lib/txline/types";
 import { selId } from "@/lib/market/ids";
+import type { TxlineSettlementProof } from "@/lib/proof/txline-settlement-verifier";
 
 export interface FinalScore {
   home: number;
@@ -51,6 +52,7 @@ export interface SettlementReceipt {
   outcomes: Record<string, 0 | 1>;
   resolved: ResolvedMarket[];
   proof: StatProofRef;
+  txlineSettlementProof?: TxlineSettlementProof | null;
 }
 
 const TOTAL_LINE = 2.5;

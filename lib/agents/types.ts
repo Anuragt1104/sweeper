@@ -12,6 +12,7 @@ import type { MarketTick } from "@/lib/market/ticks";
 import type { SelectionFeatures } from "@/lib/market/features";
 import type { SentinelAssessment } from "@/lib/sentinel/types";
 import type { EngineConfig } from "@/lib/engine/config";
+import type { TradeReadiness } from "@/lib/engine/state";
 
 export type Side = "buy" | "sell";
 
@@ -74,6 +75,7 @@ export interface Decision {
   rationale: string;
   /** hash of the market tick this decision reacted to (set by the engine). */
   reactedToHash?: string;
+  stoodDown?: boolean;
 }
 
 /** Read-only portfolio view an agent uses to decide its next move. */
@@ -89,6 +91,8 @@ export interface AgentContext {
   features: Map<string, SelectionFeatures>;
   book: PortfolioView;
   cfg: EngineConfig;
+  /** Always supplied by the engine; optional only for legacy direct-agent tests. */
+  readiness?: TradeReadiness;
 }
 
 export interface Agent {
@@ -121,6 +125,13 @@ export const MAKER_SELECTIONS: { marketType: OddsMarketType; key: string }[] = [
 
 export function emptyDecision(agentId: string, tick: MarketTick, rationale: string): Decision {
   return { agentId, seq: tick.seq, tsMs: tick.tsMs, orders: [], quotes: [], rationale };
+}
+
+export function standDownDecision(agentId: string, tick: MarketTick, reasons: string[]): Decision {
+  return {
+    ...emptyDecision(agentId, tick, `STAND DOWN · ${reasons.join("; ")}`),
+    stoodDown: true,
+  };
 }
 
 export function makeOrder(

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { EngineState } from "@/lib/engine/state";
+import type { EngineState, RecordingSummary, SupervisorStatus } from "@/lib/engine/state";
 import {
   Arena,
   AuditTrail,
+  CausalTrace,
   Controls,
   OddsBoard,
   ProofModal,
@@ -33,6 +34,9 @@ export default function Console() {
   const [controlKey, setControlKey] = useState("");
   const [queryLaunch, setQueryLaunch] = useState<QueryLaunch | null>(null);
   const [queryNotice, setQueryNotice] = useState<string | null>(null);
+  const [streamUrl, setStreamUrl] = useState("/api/stream");
+  const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
+  const [supervisorStatus, setSupervisorStatus] = useState<SupervisorStatus | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const launchedRef = useRef(false);
 
@@ -41,8 +45,8 @@ export default function Console() {
     setControlKey(storedKey);
     const query = new URLSearchParams(window.location.search);
     if (query.get("demo") === "act2") {
-      setQueryLaunch({ fixtureId: "wc26-a-md2-arg-pol", startMinute: 39.5, seed: 7, label: "demo" });
-      setQueryNotice("ACT II ready · Argentina–Poland at 39.5′ · goal lands at 41′");
+      setStreamUrl("/api/demo/act2/stream");
+      setQueryNotice("ACT II public simulation · Argentina–Poland at 39.5′ · goal lands at 41′");
     } else if (query.get("replay")) {
       setQueryLaunch({
         fixtureId: query.get("replay")!,
@@ -54,8 +58,15 @@ export default function Console() {
     }
     fetch("/api/fixtures").then((r) => r.json()).then(setFixtures).catch(() => {});
     fetch("/api/session").then((r) => r.json()).then((s) => s?.sessionId && setState(s)).catch(() => {});
+    fetch("/api/recordings").then((r) => r.json()).then((body) => setRecordings(body.recordings ?? [])).catch(() => {});
+    const loadHealth = () => fetch("/api/health").then((r) => r.json()).then((body) => setSupervisorStatus(body.supervisor ?? null)).catch(() => {});
+    void loadHealth();
+    const healthTimer = window.setInterval(loadHealth, 15_000);
+    return () => window.clearInterval(healthTimer);
+  }, []);
 
-    const es = new EventSource("/api/stream");
+  useEffect(() => {
+    const es = new EventSource(streamUrl);
     esRef.current = es;
     es.onopen = () => setConnected(true);
     es.onerror = () => setConnected(false);
@@ -67,7 +78,7 @@ export default function Console() {
       }
     };
     return () => es.close();
-  }, []);
+  }, [streamUrl]);
 
   useEffect(() => {
     if (!queryLaunch || !controlKey || launchedRef.current) return;
@@ -134,7 +145,42 @@ export default function Console() {
 
       {queryNotice && <div className="query-notice"><span>REPLAY</span>{queryNotice}</div>}
 
-      <HorizonExperience state={state} replayLabel={Boolean(queryLaunch)} />
+      <div className="panel p-3 flex items-center gap-2 flex-wrap">
+        <div className="mr-auto">
+          <div className="eyebrow">Autonomous supervisor</div>
+          <div className="text-xs text-muted mt-1">
+            {state?.supervisor?.detail ?? supervisorStatus?.detail ?? "Production supervisor initializing"}
+          </div>
+        </div>
+        <button
+          className={`btn ${streamUrl === "/api/stream" ? "btn-primary" : ""}`}
+          onClick={() => { setStreamUrl("/api/stream"); setQueryNotice(null); }}
+        >
+          Watch production
+        </button>
+        <button
+          className="btn"
+          onClick={() => {
+            setStreamUrl("/api/demo/act2/stream");
+            setQueryNotice("ACT II public simulation · immutable inputs · no operator key");
+          }}
+        >
+          Run Act II demo
+        </button>
+        {recordings[0] && (
+          <button
+            className="btn"
+            onClick={() => {
+              setStreamUrl(`/api/recordings/${recordings[0].sessionId}/stream`);
+              setQueryNotice(`RECORDED LIVE · ${recordings[0].match}`);
+            }}
+          >
+            Replay recorded match
+          </button>
+        )}
+      </div>
+
+      <HorizonExperience state={state} replayLabel={streamUrl !== "/api/stream" || Boolean(queryLaunch)} />
 
       {state?.shockStrip && <ShockStrip state={state} />}
 
@@ -155,9 +201,8 @@ export default function Console() {
             <div className="panel p-10 text-center">
               <div className="text-lg font-semibold mb-1">No session running</div>
               <div className="text-sm text-muted max-w-md mx-auto">
-                Press <span className="text-brand font-semibold">Start</span> to launch an autonomous session. Sweeper ingests
-                the TxLINE-shaped odds &amp; scores stream, runs the sentinel, lets five agents trade, and writes a
-                proof-backed audit ledger — with zero manual input.
+                The autonomous supervisor will connect 30 minutes before the next watched World Cup fixture.
+                Spectators can run the immutable Act II simulation now; operator credentials are never required for public playback.
               </div>
             </div>
           )}
@@ -178,6 +223,10 @@ export default function Console() {
 
               <Section title="Agent arena" sub="five strategies · same feed · paper PnL">
                 <Arena agents={state.agents} leader={state.leader} />
+              </Section>
+
+              <Section title="Why this action?" sub="observation → assessment → decision → shadow result → proof">
+                <CausalTrace state={state} />
               </Section>
 
               {state.settlement && <SettlementCard settlement={state.settlement} />}

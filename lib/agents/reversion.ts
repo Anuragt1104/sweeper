@@ -10,6 +10,7 @@
  */
 import {
   makeOrder,
+  standDownDecision,
   TAKER_SELECTIONS,
   type Agent,
   type AgentContext,
@@ -25,7 +26,7 @@ export class MeanReversionAgent implements Agent {
   readonly id = "reversion";
   readonly name = "Mean Reversion";
   readonly kind = "reversion";
-  readonly blurb = "Fades sentinel-confirmed outlier prints, betting on the snap-back to fair.";
+  readonly blurb = "Fades sentinel-confirmed deviations, expecting a snap-back toward the robust reference.";
   readonly mode = "taker" as const;
   private target = new Map<string, number>();
 
@@ -35,6 +36,7 @@ export class MeanReversionAgent implements Agent {
 
   onTick(ctx: AgentContext): Decision {
     const { tick, cfg, assessment } = ctx;
+    if (ctx.readiness && !ctx.readiness.ready) return standDownDecision(this.id, tick, ctx.readiness.reasons);
     const base = cfg.execution.baseSize;
 
     for (const [k, v] of this.target) {

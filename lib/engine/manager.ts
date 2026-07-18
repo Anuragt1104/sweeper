@@ -20,6 +20,17 @@ import {
   fetchTempoSnapshot,
   resolveApiFootballFixtureId,
 } from "@/lib/tempo/api-football";
+import type { StreamCursor, SupervisorStatus } from "@/lib/engine/state";
+import type { EventStore, SessionRecord } from "@/lib/persistence/event-store";
+import { eventStore } from "@/lib/persistence/runtime-store";
+import { createHash } from "node:crypto";
+import { loadFrequencyArtifact } from "@/lib/horizon/artifact";
+import {
+  TxlineSettlementVerifier,
+  TXLINE_SETTLEMENT_STAT_KEYS,
+  type SettlementVerification,
+} from "@/lib/proof/txline-settlement-verifier";
+import type { NormalizedScoreRecord } from "@/lib/txline/normalize";
 
 const TEMPO_POLL_MS = 45_000;
 
@@ -42,20 +53,25 @@ export interface ReplayResult {
 
 type Subscriber = (s: EngineState) => void;
 
-class EngineManager {
+export class EngineManager {
   private engine: SweeperEngine | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private subscribers = new Set<Subscriber>();
   private liveFeed: LiveFeedHandle | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private tempoTimer: ReturnType<typeof setInterval> | null = null;
+  private ingestChain: Promise<void> = Promise.resolve();
+
+  constructor(private readonly store: EventStore = eventStore()) {}
 
   async resolveFixture(fixtureId?: string, mode: "simulation" | "live" = "simulation"): Promise<Fixture> {
     if (mode === "live") {
       const src = new LiveSource();
       const all = await src.listFixtures();
-      const requested = fixtureId ?? process.env.TXLINE_FIXTURE_ID ?? "18237038";
-      const fixture = all.find((candidate) => candidate.id === requested);
+      const requested = fixtureId
+        ?? process.env.TXLINE_FIXTURE_ID
+        ?? process.env.TXLINE_WATCH_FIXTURE_IDS?.split(",").map((id) => id.trim()).find(Boolean);
+      const fixture = requested ? all.find((candidate) => candidate.id === requested) : undefined;
       if (fixture) return fixture;
       if (fixtureId) throw new Error(`TxLINE fixture ${fixtureId} was not found in the active schedule window`);
       if (!all[0]) throw new Error("TxLINE returned no fixtures in the active schedule window");
@@ -75,7 +91,10 @@ class EngineManager {
     const config = resolveConfig(opts.config);
     const engine = new SweeperEngine(fixture, config, mode, opts.scenario ?? []);
     this.engine = engine;
-    if (mode === "live") return this.startLive(engine);
+    if (mode === "live") {
+      await this.store.createSession(this.sessionRecord(engine, "running"));
+      return this.startLive(engine);
+    }
 
     engine.step();
     while (!engine.isFinished && opts.startMinute !== undefined && (engine.getState().current?.minute ?? 0) < opts.startMinute) {
@@ -128,6 +147,11 @@ class EngineManager {
     return this.engine;
   }
 
+  setSupervisorStatus(status: SupervisorStatus): void {
+    this.engine?.setSupervisorStatus(status);
+    this.notify();
+  }
+
   async anchor(): Promise<EngineState | null> {
     if (!this.engine) return null;
     await this.engine.anchor();
@@ -150,6 +174,155 @@ class EngineManager {
         /* drop dead subscriber silently */
       }
     }
+  }
+
+  private queuePersistedIngest(engine: SweeperEngine, tick: Parameters<SweeperEngine["ingest"]>[0], processedAtMs = Date.now()) {
+    this.ingestChain = this.ingestChain.then(async () => {
+      if (this.engine !== engine) return;
+      const stored = await this.store.appendTick(engine.sessionId, tick, processedAtMs);
+      if (!stored) return;
+      engine.ingest(tick, processedAtMs);
+      const state = engine.getState();
+      await this.store.markTickProcessed(stored.id, state);
+      await this.store.updateSession(this.sessionRecord(
+        engine,
+        state.status === "finished"
+          ? (engine.mode === "simulation" ? "completed" : "settling")
+          : "running",
+      ));
+      this.notify();
+    }).catch((error) => {
+      if (this.engine !== engine) return;
+      engine.setFeedHealth({
+        ...engine.getState().feedHealth,
+        status: "offline",
+        detail: `Durable ingestion failed: ${error instanceof Error ? error.message : "unknown error"}`,
+        fatal: true,
+      });
+      this.notify();
+    });
+  }
+
+  private queueSettlementVerification(engine: SweeperEngine, finalRecord: NormalizedScoreRecord) {
+    this.ingestChain = this.ingestChain.then(async () => {
+      if (this.engine !== engine) return;
+      const existingSupervisor = engine.getState().supervisor;
+      if (existingSupervisor) {
+        engine.setSupervisorStatus({
+          ...existingSupervisor,
+          state: "settling",
+          detail: "Validating final TxLINE record against the mainnet daily score root",
+          updatedAtMs: Date.now(),
+        });
+      }
+      const verifier = new TxlineSettlementVerifier();
+      let verification: SettlementVerification | null = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        verification = await verifier.verify({
+          fixture: engine.fixture,
+          finalRecord,
+          observedScore: finalRecord.snapshot.goals,
+        });
+        if (verification.verified || !verification.retryable) break;
+        await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** attempt));
+      }
+      if (!verification) throw new Error("Settlement verifier produced no result");
+      engine.applySettlementVerification(verification);
+      const proof = verification.txlineSettlementProof;
+      await this.store.saveProofReceipt({
+        sessionId: engine.sessionId,
+        fixtureId: engine.fixture.id,
+        finalSequence: finalRecord.snapshot.seq,
+        statKeys: [...TXLINE_SETTLEMENT_STAT_KEYS],
+        responseHash: proof?.responseHash ?? "",
+        rootPda: proof?.dailyRootPda ?? "",
+        verified: verification.verified,
+        failureCode: verification.failureCode,
+        receipt: verification,
+      });
+      const anchor = await engine.anchor();
+      if (anchor) {
+        await this.store.saveLedgerAnchor({
+          sessionId: engine.sessionId,
+          localRoot: anchor.root,
+          network: process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet",
+          signature: anchor.sig,
+          explorerUrl: anchor.url,
+        });
+      }
+      const state = engine.getState();
+      if (state.supervisor) {
+        engine.setSupervisorStatus({
+          ...state.supervisor,
+          state: "completed",
+          detail: verification.verified ? "Settlement proof verified" : `Settlement held: ${verification.failureCode}`,
+          updatedAtMs: Date.now(),
+        });
+      }
+      await this.store.updateSession(this.sessionRecord(engine, "completed"));
+      this.notify();
+    }).catch((error) => {
+      const state = engine.getState();
+      if (state.supervisor) {
+        engine.setSupervisorStatus({
+          ...state.supervisor,
+          state: "failed",
+          detail: error instanceof Error ? error.message : "Settlement verification failed",
+          updatedAtMs: Date.now(),
+        });
+      }
+      void this.store.updateSession(this.sessionRecord(engine, "failed"));
+      this.notify();
+    });
+  }
+
+  async recoverUnfinished(): Promise<EngineState | null> {
+    const session = await this.store.loadUnfinishedSession();
+    if (!session) return null;
+    const fixture = await this.resolveFixture(session.fixtureId, "live");
+    const engine = new SweeperEngine(
+      fixture,
+      session.configuration,
+      "live",
+      [],
+      loadFrequencyArtifact(),
+      session.sessionId,
+    );
+    this.engine = engine;
+    const ticks = await this.store.listTicks(session.sessionId);
+    const processed = ticks.filter((tick) => tick.processingStatus === "processed");
+    const pending = ticks.filter((tick) => tick.processingStatus === "pending");
+    for (const stored of processed) engine.ingest(stored.tick, stored.processedAtMs);
+    if (session.ledgerRoot && engine.getState().ledger.root !== session.ledgerRoot) {
+      throw new Error(`Recovery ledger root mismatch for ${session.sessionId}`);
+    }
+    for (const stored of pending) {
+      engine.ingest(stored.tick, stored.processedAtMs);
+      await this.store.markTickProcessed(stored.id, engine.getState());
+    }
+    await this.store.updateSession(this.sessionRecord(engine, "running"));
+    return this.startLive(engine);
+  }
+
+  private sessionRecord(
+    engine: SweeperEngine,
+    status: SessionRecord["status"],
+  ): SessionRecord {
+    const state = engine.getState();
+    return {
+      sessionId: engine.sessionId,
+      fixtureId: engine.fixture.id,
+      competitionId: engine.fixture.competitionId ?? null,
+      provenance: state.provenance,
+      executionMode: state.executionMode,
+      configuration: engine.config,
+      artifactHash: createHash("sha256").update(JSON.stringify(loadFrequencyArtifact())).digest("hex"),
+      status,
+      startedAtMs: state.startedAtMs || Date.now(),
+      completedAtMs: status === "completed" ? Date.now() : null,
+      latestState: state,
+      ledgerRoot: state.ledger.root,
+    };
   }
 
   private async startLive(engine: SweeperEngine): Promise<EngineState> {
@@ -192,7 +365,11 @@ class EngineManager {
       if (this.engine !== engine) return engine.getState();
       const assembler = new LiveTickAssembler(engine.fixture);
       const hydrationTick = assembler.hydrate(scoreRecords, oddsRecords);
-      engine.ingest(hydrationTick, Date.now());
+      const hydrated = await this.store.appendTick(engine.sessionId, hydrationTick, Date.now());
+      if (hydrated) {
+        engine.ingest(hydrationTick, hydrated.processedAtMs);
+        await this.store.markTickProcessed(hydrated.id, engine.getState());
+      }
       updateHealth({
         hydratedScore: true,
         hydratedOdds: true,
@@ -201,26 +378,62 @@ class EngineManager {
         detail: "Snapshots hydrated; accepting TxLINE score and odds streams",
       });
 
+      const storedCursors = await this.store.loadCursors(engine.fixture.id);
+      const initialEventIds = Object.fromEntries(
+        storedCursors.map((cursor) => [cursor.kind, cursor.lastEventId]),
+      );
+      let recoveringGap = false;
+      const recoverGap = async () => {
+        if (recoveringGap) return;
+        recoveringGap = true;
+        try {
+          const records = await source.getHistoricalScoreRecords(engine.fixture);
+          let unresolved: FeedHealth["sequenceGap"] = health.sequenceGap;
+          for (const record of records) {
+            const recovered = assembler.acceptScore(record);
+            if (recovered.gap) {
+              unresolved = recovered.gap;
+              continue;
+            }
+            if (recovered.tick) this.queuePersistedIngest(engine, recovered.tick, Date.now());
+            unresolved = null;
+          }
+          updateHealth(unresolved
+            ? { status: "degraded", sequenceGap: unresolved, detail: "Authoritative rehydration did not restore score continuity" }
+            : { sequenceGap: null, detail: "Authoritative score continuity restored" });
+        } catch (error) {
+          updateHealth({
+            status: "degraded",
+            detail: `Score gap rehydration failed: ${error instanceof Error ? error.message : "unknown error"}`,
+          });
+        } finally {
+          recoveringGap = false;
+        }
+      };
+
       this.liveFeed = await openLiveMatchFeed(engine.fixture, {
+        initialEventIds,
         onAccepted: (kind) => updateHealth(kind === "score" ? { scoreStreamAccepted: true } : { oddsStreamAccepted: true }),
-        onScore: (record) => {
+        onScore: (record, eventId) => {
           if (this.engine !== engine) return;
-          const result = assembler.acceptScore(record);
+          const result = assembler.acceptScore(record, eventId);
           const patch: Partial<FeedHealth> = { lastScoreAtMs: Date.parse(record.snapshot.ts) };
-          if (result.gap) Object.assign(patch, { status: "degraded", sequenceGap: result.gap });
+          if (result.gap) {
+            Object.assign(patch, { status: "degraded", sequenceGap: result.gap });
+            void recoverGap();
+          }
           updateHealth(patch);
           if (result.tick) {
-            engine.ingest(result.tick, Date.now());
-            this.notify();
+            this.queuePersistedIngest(engine, result.tick, Date.now());
+            if (result.finalised) this.queueSettlementVerification(engine, record);
           }
         },
-        onOdds: (raw) => {
+        onOdds: (raw, eventId) => {
           if (this.engine !== engine) return;
-          const tick = assembler.acceptOdds(raw);
+          const tick = assembler.acceptOdds(raw, eventId);
           if (!tick) return;
           updateHealth({ lastOddsAtMs: tick.upstream?.oddsTsMs ?? tick.tsMs });
-          engine.ingest(tick, Date.now());
-          this.notify();
+          this.queuePersistedIngest(engine, tick, Date.now());
         },
         onReconnect: (_kind, count) => updateHealth({
           status: health.status === "connecting" ? "connecting" : "degraded",
@@ -237,15 +450,22 @@ class EngineManager {
           detail: error instanceof Error ? error.message : "TxLINE configuration rejected",
           fatal: true,
         }),
+        onCursor: (kind, eventId, reconnectCount) => {
+          const cursor: StreamCursor = {
+            fixtureId: engine.fixture.id,
+            kind,
+            lastEventId: eventId,
+            reconnectCount,
+            updatedAtMs: Date.now(),
+          };
+          void this.store.saveCursor(cursor);
+        },
       });
       void this.liveFeed.accepted.catch(() => undefined);
       this.heartbeatTimer = setInterval(() => {
         if (this.engine !== engine || engine.isFinished) return;
         const tick = assembler.heartbeat();
-        if (tick) {
-          engine.ingest(tick, Date.now());
-          this.notify();
-        }
+        if (tick) this.queuePersistedIngest(engine, tick, Date.now());
       }, HEARTBEAT_MS);
 
       void this.startTempoEnrichment(engine);

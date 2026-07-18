@@ -32,6 +32,7 @@ import { hashStringToSeed, makeRng, type Rng } from "@/lib/util/rng";
 import type { EngineConfig } from "@/lib/engine/config";
 import { TempoSynthesizer } from "@/lib/tempo/sim";
 import type { TempoSnapshot } from "@/lib/tempo/types";
+import type { PricingProvenance } from "@/lib/pricing/types";
 
 export type AnomalyKind = "stale" | "suspend" | "outlier";
 
@@ -69,8 +70,9 @@ export interface MarketTick {
   suspended: boolean;
   /** observed odds on the wire (micro-noise + anomalies applied). */
   odds: OddsSnapshot;
-  /** clean model fair odds — the reference (the desk's model in live mode). */
-  fair: OddsSnapshot;
+  /** Reference probabilities and their explicit provenance. */
+  reference: OddsSnapshot;
+  pricing: PricingProvenance;
   /** discrete match events since the previous tick. */
   events: MatchEvent[];
   /** ground-truth injected anomaly, if any (replay lab only; sentinel ignores). */
@@ -81,6 +83,8 @@ export interface MarketTick {
     scoreTsMs: number;
     oddsTsMs: number;
     oddsMessageId?: string;
+    scoreEventId?: string;
+    oddsEventId?: string;
     heartbeat?: boolean;
   };
   /** Optional enrichment — shots / SOT. Never used for Horizon settlement. */
@@ -243,7 +247,14 @@ export class MarketTickGenerator {
       score,
       suspended,
       odds,
-      fair,
+      reference: fair,
+      pricing: {
+        source: "simulation_model",
+        sampleCount: clamped + 1,
+        ready: true,
+        standDownReason: null,
+        updatedAtMs: this.baseTs + clamped * this.config.tickServerMs,
+      },
       events,
       anomaly,
       tempo: this.tempo.snapshot(minute, tsMs),

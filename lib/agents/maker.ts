@@ -13,13 +13,14 @@
  */
 import {
   MAKER_SELECTIONS,
+  standDownDecision,
   type Agent,
   type AgentContext,
   type Decision,
   type Quote,
 } from "@/lib/agents/types";
 import { selId } from "@/lib/market/ids";
-import { clamp, fairProb, volOf } from "@/lib/agents/util";
+import { clamp, referenceProb, volOf } from "@/lib/agents/util";
 
 const QUALITY_PULL = 40;
 
@@ -27,13 +28,14 @@ export class MarketMakerAgent implements Agent {
   readonly id = "maker";
   readonly name = "Market Maker";
   readonly kind = "maker";
-  readonly blurb = "Quotes two-sided prices around fair; sentinel widens, skews, and pulls quotes to manage risk.";
+  readonly blurb = "Quotes around the robust reference; sentinel widens, skews, and pulls shadow quotes.";
   readonly mode = "maker" as const;
 
   reset() {}
 
   onTick(ctx: AgentContext): Decision {
     const { tick, cfg, assessment, features } = ctx;
+    if (ctx.readiness && !ctx.readiness.ready) return standDownDecision(this.id, tick, ctx.readiness.reasons);
     const exec = cfg.execution;
     const quotes: Quote[] = [];
     const pulledReasons: string[] = [];
@@ -45,7 +47,7 @@ export class MarketMakerAgent implements Agent {
 
     for (const s of MAKER_SELECTIONS) {
       const id = selId(s.marketType, s.key);
-      const fair = fairProb(tick, s.marketType, s.key);
+      const fair = referenceProb(tick, s.marketType, s.key);
       if (fair == null) continue;
 
       if (globalPull || assessment.staleSelections.includes(id)) {
@@ -82,7 +84,7 @@ export class MarketMakerAgent implements Agent {
 
     const rationale = quotes.length
       ? `Quoting ${quotes.length} lines (q=${assessment.quality})`
-      : `Quotes pulled: ${pulledReasons.join(", ") || "no fair price"}`;
+      : `Quotes pulled: ${pulledReasons.join(", ") || "no reference price"}`;
     return { agentId: this.id, seq: tick.seq, tsMs: tick.tsMs, orders: [], quotes, rationale };
   }
 }

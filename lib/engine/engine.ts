@@ -23,7 +23,9 @@ import { Sentinel } from "@/lib/sentinel/sentinel";
 import type { SelectionFeatures } from "@/lib/market/features";
 import { buildAgents } from "@/lib/agents/registry";
 import type { Agent, Decision } from "@/lib/agents/types";
-import { PaperExchange } from "@/lib/execution/paper";
+import { SimulatedPaperExchange } from "@/lib/execution/paper";
+import { LiveShadowExchange } from "@/lib/execution/live-shadow";
+import type { ExecutionAdapter } from "@/lib/execution/types";
 import { Portfolio } from "@/lib/execution/portfolio";
 import { AuditLedger } from "@/lib/proof/ledger";
 import { buildSettlement, type FinalScore, type SettlementReceipt } from "@/lib/proof/settlement";
@@ -43,24 +45,30 @@ import {
   type SelectionView,
   type TickView,
   type FeedHealth,
+  PUBLIC_SCHEMA_VERSION,
+  type RunProvenance,
+  type SupervisorStatus,
+  type TradeReadiness,
 } from "@/lib/engine/state";
 import { HorizonMachine } from "@/lib/horizon/machine";
 import type { FrequencyArtifact } from "@/lib/horizon/probability";
 import { loadFrequencyArtifact } from "@/lib/horizon/artifact";
 import { ShockStripAssembler } from "@/lib/tempo/strip";
 import type { TempoSnapshot } from "@/lib/tempo/types";
+import { evaluateTradeReadiness } from "@/lib/readiness/trade-readiness";
+import type { SettlementVerification } from "@/lib/proof/txline-settlement-verifier";
 
 export class SweeperEngine {
   readonly sessionId: string;
   readonly fixture: Fixture;
   readonly config: EngineConfig;
-  readonly mode: "simulation" | "live";
+  readonly mode: RunProvenance;
 
   private gen: MarketTickGenerator;
   private sentinel: Sentinel;
   private agents: Agent[];
   private books = new Map<string, Portfolio>();
-  private exchange: PaperExchange;
+  private exchange: ExecutionAdapter;
   private ledger = new AuditLedger();
   private horizon: HorizonMachine;
   private shockStrip = new ShockStripAssembler();
@@ -76,22 +84,33 @@ export class SweeperEngine {
   private startedAtMs = 0;
   private updatedAtMs = 0;
   private feedHealth: FeedHealth = { ...OFFLINE_FEED_HEALTH };
+  private tradeReadiness: TradeReadiness = {
+    ready: false,
+    reasons: ["no tick ingested"],
+    checkedAtMs: 0,
+    scoreAgeMs: null,
+    oddsAgeMs: null,
+  };
+  private supervisorStatus: SupervisorStatus | null = null;
 
   constructor(
     fixture: Fixture,
     config: EngineConfig,
-    mode: "simulation" | "live" = "simulation",
+    mode: RunProvenance = "simulation",
     scenario: ScenarioEvent[] = [],
     horizonArtifact?: FrequencyArtifact,
+    sessionId?: string,
   ) {
     this.fixture = fixture;
     this.config = config;
     this.mode = mode;
-    this.sessionId = uid("swpr");
+    this.sessionId = sessionId ?? uid("swpr");
     this.gen = new MarketTickGenerator(fixture, config, scenario);
     this.sentinel = new Sentinel(fixture.id, config);
     this.agents = buildAgents();
-    this.exchange = new PaperExchange(config);
+    this.exchange = mode === "simulation"
+      ? new SimulatedPaperExchange(config)
+      : new LiveShadowExchange(config);
     this.horizon = new HorizonMachine(horizonArtifact ?? loadFrequencyArtifact(), (record) => {
       this.ledger.append(
         record.kind,
@@ -102,7 +121,7 @@ export class SweeperEngine {
         record.reactedToHash,
       );
     });
-    if (mode === "live") {
+    if (mode !== "simulation") {
       this.feedHealth = {
         ...OFFLINE_FEED_HEALTH,
         status: "connecting",
@@ -144,9 +163,13 @@ export class SweeperEngine {
     this.shockStrip.setTempoStatus(status, detail, source);
   }
 
-  /** Mark every portfolio to the model fair price for the given tick. */
+  setSupervisorStatus(next: SupervisorStatus): void {
+    this.supervisorStatus = { ...next };
+  }
+
+  /** Mark every portfolio to the explicit reference price for the tick. */
   private markAll(tick: MarketTick) {
-    for (const m of tick.fair.markets) {
+    for (const m of tick.reference.markets) {
       for (const s of m.selections) {
         const id = selId(m.type, s.key);
         for (const book of this.books.values()) book.mark(id, s.impliedProb);
@@ -172,6 +195,7 @@ export class SweeperEngine {
       this.startedAtMs = tick.tsMs;
     }
     this.currentTick = tick;
+    this.tradeReadiness = evaluateTradeReadiness(tick, this.feedHealth, this.mode, processedAtMs);
     this.markAll(tick);
 
     // 1. record the data we ingested → hash links every downstream decision
@@ -206,35 +230,46 @@ export class SweeperEngine {
     // 3. agents decide → execute
     for (const agent of this.agents) {
       const book = this.books.get(agent.id)!;
-      const decision = agent.onTick({ tick, assessment, features, book, cfg: this.config });
+      const decision = agent.onTick({
+        tick,
+        assessment,
+        features,
+        book,
+        cfg: this.config,
+        readiness: this.tradeReadiness,
+      });
       decision.reactedToHash = tickHash;
       this.lastDecision.set(agent.id, decision);
 
+      const decisionHash = this.ledger.append(
+        "decision",
+        tick.seq,
+        tick.tsMs,
+        `${agent.name}: ${decision.rationale}`,
+        {
+          agentId: agent.id,
+          rationale: decision.rationale,
+          stoodDown: decision.stoodDown ?? false,
+          orders: decision.orders,
+          quotes: decision.quotes,
+        },
+        tickHash,
+      ).hash;
+
       if (agent.mode === "taker") {
         for (const order of decision.orders) {
-          const res = this.exchange.executeOrder(order, tick);
+          const res = this.exchange.executeOrder(order, tick, this.tradeReadiness);
           if (res.ok) {
             book.applyFill(res.fill);
-            this.ledger.append("fill", tick.seq, tick.tsMs, fillSummary(res.fill), res.fill, tickHash);
+            this.ledger.append("fill", tick.seq, tick.tsMs, fillSummary(res.fill), res.fill, decisionHash);
           }
         }
       } else {
-        const fills = this.exchange.matchFlow(decision.quotes, tick);
+        const fills = this.exchange.matchQuotes(decision.quotes, tick, this.tradeReadiness);
         for (const fill of fills) {
           book.applyFill(fill);
-          this.ledger.append("fill", tick.seq, tick.tsMs, fillSummary(fill), fill, tickHash);
+          this.ledger.append("fill", tick.seq, tick.tsMs, fillSummary(fill), fill, decisionHash);
         }
-      }
-
-      if (decision.orders.length || decision.quotes.length) {
-        this.ledger.append(
-          "decision",
-          tick.seq,
-          tick.tsMs,
-          `${agent.name}: ${decision.rationale}`,
-          { agentId: agent.id, rationale: decision.rationale, orders: decision.orders, quotes: decision.quotes },
-          tickHash,
-        );
       }
     }
 
@@ -244,7 +279,9 @@ export class SweeperEngine {
 
     this.cursor += 1;
     this.updatedAtMs = tick.tsMs;
-    const terminal = tick.phase === GamePhase.FullTime || tick.phase === GamePhase.Finished;
+    const terminal = this.mode === "simulation"
+      ? tick.phase === GamePhase.FullTime || tick.phase === GamePhase.Finished
+      : tick.score.lifecycle?.action === "game_finalised";
     if ((this.mode === "simulation" && this.cursor >= this.totalTicks) || terminal) {
       this.finalize();
       return false;
@@ -264,7 +301,8 @@ export class SweeperEngine {
     const tick = this.currentTick!;
     const finalScore: FinalScore = { home: tick.score.goals.home, away: tick.score.goals.away };
     const root = this.ledger.root();
-    const receipt = buildSettlement(this.fixture, finalScore, tick.phase, root, this.mode, this.mode === "simulation");
+    const settlementMode = this.mode === "simulation" ? "simulation" : "live";
+    const receipt = buildSettlement(this.fixture, finalScore, tick.phase, root, settlementMode, this.mode === "simulation");
     this.settlement = receipt;
 
     if (receipt.status === "settled") {
@@ -299,6 +337,48 @@ export class SweeperEngine {
     );
     this.status = "finished";
     this.updatedAtMs = tick.tsMs;
+  }
+
+  applySettlementVerification(verification: SettlementVerification): SettlementReceipt {
+    if (this.mode === "simulation") throw new Error("Simulation settlement does not accept TxLINE verification");
+    const tick = this.currentTick;
+    if (!tick || tick.score.lifecycle?.action !== "game_finalised") {
+      throw new Error("A real game_finalised tick is required before settlement verification");
+    }
+    if (!verification.verified) {
+      if (this.settlement) {
+        this.settlement.reason = `${verification.failureCode}: ${verification.detail}`;
+        this.settlement.txlineSettlementProof = null;
+      }
+      this.ledger.append(
+        "settlement",
+        tick.seq,
+        Date.now(),
+        `Settlement held · ${verification.failureCode}`,
+        verification,
+      );
+      return this.settlement!;
+    }
+
+    const finalScore: FinalScore = { home: tick.score.goals.home, away: tick.score.goals.away };
+    const verifiedAtMs = verification.txlineSettlementProof?.verifiedAtMs ?? tick.tsMs;
+    const receipt = buildSettlement(this.fixture, finalScore, tick.phase, this.ledger.root(), "live", true);
+    receipt.txlineSettlementProof = verification.txlineSettlementProof;
+    this.settlement = receipt;
+    const outcomes = new Map(Object.entries(receipt.outcomes)) as Map<string, 0 | 1>;
+    for (const book of this.books.values()) {
+      book.settle(outcomes);
+      book.snapshot(tick.seq + 1, verifiedAtMs);
+    }
+    this.ledger.append(
+      "settlement",
+      tick.seq,
+      verifiedAtMs,
+      `TxLINE mainnet proof verified · ${receipt.match} ${finalScore.home}-${finalScore.away}`,
+      verification,
+    );
+    this.updatedAtMs = verifiedAtMs;
+    return receipt;
   }
 
   /** Anchor the ledger root on Solana devnet (optional). */
@@ -345,6 +425,7 @@ export class SweeperEngine {
           unrealized: round2(p.net * (p.mark - p.avg)),
         })),
         lastRationale: last?.rationale ?? "—",
+        stoodDown: last?.stoodDown ?? false,
         curve: sampleCurve(book.curve.map((c) => c.equity)),
       };
     });
@@ -363,11 +444,15 @@ export class SweeperEngine {
     }));
 
     return {
+      schemaVersion: PUBLIC_SCHEMA_VERSION,
       sessionId: this.sessionId,
       status: this.status,
+      provenance: this.mode,
+      executionMode: this.mode === "simulation" ? "simulated" : "shadow",
       mode: this.mode,
       fixture: {
         id: this.fixture.id,
+        competitionId: this.fixture.competitionId,
         home: this.fixture.home.name,
         away: this.fixture.away.name,
         homeCode: this.fixture.home.code,
@@ -396,6 +481,8 @@ export class SweeperEngine {
       },
       settlement: this.settlement,
       feedHealth: this.feedHealth,
+      tradeReadiness: this.tradeReadiness,
+      supervisor: this.supervisorStatus,
       horizon: this.horizon.getState(),
       shockStrip: this.shockStrip.getState(),
       anchorAvailable: this.anchorAvailable(),
@@ -406,11 +493,11 @@ export class SweeperEngine {
 
   private tickView(tick: MarketTick): TickView {
     const markets: MarketView[] = tick.odds.markets.map((m) => {
-      const fairM = tick.fair.markets.find((x) => x.type === m.type);
+      const fairM = tick.reference.markets.find((x) => x.type === m.type);
       const selections: SelectionView[] = m.selections.map((s) => {
         const id = selId(m.type, s.key);
         const f = this.sentinelFeature(id);
-        const fairProb = fairM?.selections.find((x) => x.key === s.key)?.impliedProb ?? s.impliedProb;
+        const referenceProb = fairM?.selections.find((x) => x.key === s.key)?.impliedProb ?? s.impliedProb;
         return {
           marketType: m.type as OddsMarketType,
           key: s.key,
@@ -419,7 +506,7 @@ export class SweeperEngine {
           price: s.price,
           prevPrice: s.prevPrice,
           decimal: round2(1 / Math.max(0.001, s.impliedProb)),
-          fairProb: round3(fairProb),
+          referenceProb: round3(referenceProb),
           movement: priceMovement(s.price, s.prevPrice),
           z: f ? round2(f.z) : 0,
           vol: f ? round4(f.vol) : 0,
@@ -448,6 +535,8 @@ export class SweeperEngine {
       quality: Math.round(this.sentinel.currentQuality()),
       markets,
       events: tick.events.map((e) => ({ kind: e.kind, label: e.label, minute: e.minute })),
+      pricing: tick.pricing,
+      readiness: this.tradeReadiness,
       anomaly: tick.anomaly,
     };
   }

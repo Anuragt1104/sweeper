@@ -85,6 +85,7 @@ export function normalizeFixture(raw: unknown): Fixture {
   const now = Date.now();
   return {
     id,
+    competitionId: optionalStringOrNumber(object, "competitionId"),
     competition,
     stage: optionalString(object, "fixtureGroup", "stage") ?? competition,
     groupId: optionalStringOrNumber(object, "fixtureGroupId"),
@@ -105,6 +106,8 @@ export function normalizeScoreRecord(raw: unknown, fixture: Fixture): Normalized
   const tsMs = epochMs(requiredNumber(object, "ts"));
   const state = (optionalString(object, "gameState", "statusSoccerId") ?? "NS").toUpperCase();
   const action = (optionalString(object, "action") ?? "").toLowerCase();
+  const statusId = optionalNumber(object, "statusId");
+  const periodValue = optionalNumber(object, "period");
   if (action !== "game_finalised" && PHASE_MAP[state] === undefined) {
     throw new PayloadValidationError(`Unsupported soccer GameState ${state}`);
   }
@@ -127,6 +130,13 @@ export function normalizeScoreRecord(raw: unknown, fixture: Fixture): Normalized
     yellow: orient(pairFromTotal(p1, p2, "YellowCards", stats, 3, 4), participant1IsHome),
     red: orient(pairFromTotal(p1, p2, "RedCards", stats, 5, 6), participant1IsHome),
     corners: orient(pairFromTotal(p1, p2, "Corners", stats, 7, 8), participant1IsHome),
+    lifecycle: {
+      action,
+      gameState: state,
+      ...(statusId === undefined ? {} : { statusId }),
+      ...(periodValue === undefined ? {} : { period: periodValue }),
+      participant1IsHome,
+    },
     periods: {
       firstHalf: period(p1, p2, "H1", participant1IsHome),
       secondHalf: period(p1, p2, "H2", participant1IsHome),
@@ -136,7 +146,7 @@ export function normalizeScoreRecord(raw: unknown, fixture: Fixture): Normalized
   return {
     snapshot,
     action,
-    finalised: action === "game_finalised" || phase === GamePhase.Finished || phase === GamePhase.FullTime,
+    finalised: action === "game_finalised",
     explicitEvent: explicitMaterialEvent(data, object, fixture, snapshot, participant1IsHome),
   };
 }
@@ -163,6 +173,17 @@ export class ScoreSequence {
     const gap = previous && record.snapshot.seq > previous.snapshot.seq + 1
       ? { expected: previous.snapshot.seq + 1, received: record.snapshot.seq }
       : null;
+    if (gap) {
+      return {
+        accepted: false,
+        snapshot: previous?.snapshot ?? null,
+        events: [],
+        degraded: true,
+        gap,
+        correction: false,
+        finalised: false,
+      };
+    }
     const baseline = this.eventBaseline ?? previous?.snapshot ?? null;
     const correction = baseline ? hasCounterCorrection(baseline, record.snapshot) : false;
     let events: MatchEvent[] = [];
@@ -210,6 +231,16 @@ export function normalizeOddsRecords(
     seq,
     ts: new Date(Math.max(...records.map((record) => record.tsMs))).toISOString(),
     markets,
+    lifecycle: {
+      inRunning: latestRecord(records).inRunning,
+      gameState: latestRecord(records).gameState,
+      suspended: latestRecord(records).suspended,
+    },
+    upstream: {
+      messageIds: [...new Set(records.map((record) => record.messageId))],
+      sources: [...new Set(records.map((record) => record.source).filter(Boolean))],
+      bookmakers: [...new Set(records.map((record) => record.bookmaker).filter(Boolean))],
+    },
   };
 }
 
@@ -224,6 +255,11 @@ interface ParsedOdds {
   prices: number[];
   pct: (number | null)[];
   lineKey: string;
+  inRunning: boolean | null;
+  gameState: string | null;
+  suspended: boolean;
+  source: string;
+  bookmaker: string;
 }
 
 function normalizeOddsRecord(raw: unknown, fixture: Fixture): ParsedOdds {
@@ -237,6 +273,11 @@ function normalizeOddsRecord(raw: unknown, fixture: Fixture): ParsedOdds {
   const parameters = optionalString(object, "marketParameters") ?? "";
   const priceNames = stringArray(requiredValue(object, "priceNames"), "priceNames");
   const prices = numberArray(requiredValue(object, "prices"), "prices");
+  const inRunning = optionalBoolean(object, "inRunning");
+  const gameState = optionalString(object, "gameState", "statusSoccerId")?.toUpperCase() ?? null;
+  const suspended = optionalBoolean(object, "suspended", "isSuspended") ?? false;
+  const source = optionalString(object, "source", "provider", "operator") ?? "";
+  const bookmaker = optionalString(object, "bookmaker", "bookmakerName") ?? "";
   if (priceNames.length === 0 || priceNames.length !== prices.length) {
     throw new PayloadValidationError("Odds PriceNames/Prices must be non-empty equal-length arrays");
   }
@@ -255,7 +296,16 @@ function normalizeOddsRecord(raw: unknown, fixture: Fixture): ParsedOdds {
     prices,
     pct,
     lineKey: `${superType}|${period}|${parameters}`,
+    inRunning: inRunning ?? null,
+    gameState,
+    suspended,
+    source,
+    bookmaker,
   };
+}
+
+function latestRecord(records: ParsedOdds[]): ParsedOdds {
+  return records.reduce((latest, record) => record.tsMs >= latest.tsMs ? record : latest);
 }
 
 function toMarket(record: ParsedOdds, fixture: Fixture, previous?: OddsSnapshot): OddsMarket {

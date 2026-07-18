@@ -67,6 +67,8 @@ export type FixtureStatus = "scheduled" | "live" | "finished";
 
 export interface Fixture {
   id: string;
+  /** TxLINE competition identifier used to keep autonomous selection scoped. */
+  competitionId?: string;
   competition: string;
   /** e.g. "Group A", "Round of 16", "Final". */
   stage: string;
@@ -86,18 +88,14 @@ export interface Fixture {
  * codes; we mirror the documented soccer set (totals + period-specific).
  */
 export enum StatType {
-  TotalGoals = 1,
-  TotalYellowCards = 2,
-  TotalRedCards = 3,
-  TotalCorners = 4,
-  FirstHalfGoals = 11,
-  FirstHalfYellowCards = 12,
-  FirstHalfRedCards = 13,
-  FirstHalfCorners = 14,
-  SecondHalfGoals = 21,
-  SecondHalfYellowCards = 22,
-  SecondHalfRedCards = 23,
-  SecondHalfCorners = 24,
+  Participant1Goals = 1,
+  Participant2Goals = 2,
+  Participant1YellowCards = 3,
+  Participant2YellowCards = 4,
+  Participant1RedCards = 5,
+  Participant2RedCards = 6,
+  Participant1Corners = 7,
+  Participant2Corners = 8,
 }
 
 /** Per-side counts for a single stat dimension. */
@@ -120,6 +118,14 @@ export interface ScoreSnapshot {
   yellow: StatPair;
   red: StatPair;
   corners: StatPair;
+  /** Original lifecycle fields required for authoritative settlement. */
+  lifecycle?: {
+    action: string;
+    gameState: string;
+    statusId?: number;
+    period?: number;
+    participant1IsHome: boolean;
+  };
   /** Period-specific breakdowns keyed by StatType. */
   periods: {
     firstHalf: { goals: StatPair; yellow: StatPair; red: StatPair; corners: StatPair };
@@ -184,6 +190,17 @@ export interface OddsSnapshot {
   seq: number;
   ts: string;
   markets: OddsMarket[];
+  lifecycle?: {
+    inRunning: boolean | null;
+    gameState: string | null;
+    suspended: boolean;
+  };
+  upstream?: {
+    messageIds: string[];
+    eventId?: string;
+    sources: string[];
+    bookmakers: string[];
+  };
 }
 
 /** Combined live tick the simulation/live source emits to the room runner. */

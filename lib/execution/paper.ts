@@ -16,20 +16,22 @@ import type { ExecResult, Fill, Order, Quote } from "@/lib/agents/types";
 import type { MarketTick } from "@/lib/market/ticks";
 import type { EngineConfig } from "@/lib/engine/config";
 import { hashStringToSeed, makeRng } from "@/lib/util/rng";
+import type { TradeReadiness } from "@/lib/engine/state";
+import type { ExecutionAdapter } from "@/lib/execution/types";
 
-export class PaperExchange {
+export class SimulatedPaperExchange implements ExecutionAdapter {
   private cfg: EngineConfig;
   constructor(cfg: EngineConfig) {
     this.cfg = cfg;
   }
 
   /** Execute a taker order against the observed book. */
-  executeOrder(order: Order, tick: MarketTick): ExecResult {
+  executeOrder(order: Order, tick: MarketTick, readiness: TradeReadiness = simulatedReady(tick)): ExecResult {
     if (order.size <= 0) {
       return { ok: false, rejection: { order, reason: "zero size" } };
     }
-    if (tick.suspended) {
-      return { ok: false, rejection: { order, reason: "book suspended" } };
+    if (!readiness.ready || tick.suspended) {
+      return { ok: false, rejection: { order, reason: readiness.reasons.join(", ") || "book suspended" } };
     }
     const slip = this.cfg.execution.slippage;
     const price =
@@ -51,11 +53,11 @@ export class PaperExchange {
   }
 
   /** Match MM quotes against seeded order flow; returns the MM's fills. */
-  matchFlow(quotes: Quote[], tick: MarketTick): Fill[] {
-    if (tick.suspended) return [];
+  matchQuotes(quotes: Quote[], tick: MarketTick, readiness: TradeReadiness = simulatedReady(tick)): Fill[] {
+    if (!readiness.ready || tick.suspended) return [];
     const fills: Fill[] = [];
     for (const q of quotes) {
-      const fair = fairProbFor(tick, q.selId);
+      const fair = referenceProbFor(tick, q.selId);
       if (fair == null) continue;
       const r = makeRng(hashStringToSeed(`${tick.fixtureId}:${tick.seq}:${q.selId}:flow`));
       const flowSize = Math.min(q.size, 6 + r.int(0, 14));
@@ -100,14 +102,27 @@ export class PaperExchange {
   }
 }
 
-function fairProbFor(tick: MarketTick, selId: string): number | null {
-  for (const m of tick.fair.markets) {
+function referenceProbFor(tick: MarketTick, selId: string): number | null {
+  for (const m of tick.reference.markets) {
     for (const s of m.selections) {
       if (`${m.type}:${s.key}` === selId) return s.impliedProb;
     }
   }
   return null;
 }
+
+function simulatedReady(tick: MarketTick): TradeReadiness {
+  return {
+    ready: !tick.suspended,
+    reasons: tick.suspended ? ["book suspended"] : [],
+    checkedAtMs: tick.tsMs,
+    scoreAgeMs: 0,
+    oddsAgeMs: 0,
+  };
+}
+
+/** Backward-compatible name for existing consumers. */
+export { SimulatedPaperExchange as PaperExchange };
 function clampP(x: number): number {
   return Math.max(0.001, Math.min(0.999, x));
 }
