@@ -30,6 +30,8 @@ import {
 } from "@/lib/txline/types";
 import { hashStringToSeed, makeRng, type Rng } from "@/lib/util/rng";
 import type { EngineConfig } from "@/lib/engine/config";
+import { TempoSynthesizer } from "@/lib/tempo/sim";
+import type { TempoSnapshot } from "@/lib/tempo/types";
 
 export type AnomalyKind = "stale" | "suspend" | "outlier";
 
@@ -81,6 +83,8 @@ export interface MarketTick {
     oddsMessageId?: string;
     heartbeat?: boolean;
   };
+  /** Optional enrichment — shots / SOT. Never used for Horizon settlement. */
+  tempo?: TempoSnapshot;
 }
 
 const OVERROUND = 1.05;
@@ -90,6 +94,7 @@ export class MarketTickGenerator {
   readonly config: EngineConfig;
   readonly totalTicks: number;
   private sim: MatchSimulation;
+  private tempo: TempoSynthesizer;
   private windows: AnomalyWindow[] = [];
   private baseTs: number;
 
@@ -97,6 +102,7 @@ export class MarketTickGenerator {
     this.fixture = fixture;
     this.config = config;
     this.sim = new MatchSimulation(fixture);
+    this.tempo = new TempoSynthesizer(fixture, this.sim.eventsBetween(-1, MATCH_MINUTES, new Date(0).toISOString()));
     this.totalTicks = Math.floor(MATCH_MINUTES / config.tickMinutes) + 1;
     // Anchor server time to the fixture so timestamps are stable across runs.
     this.baseTs = 1_750_000_000_000 + (hashStringToSeed(fixture.id) % 100_000) * 1000;
@@ -227,10 +233,11 @@ export class MarketTickGenerator {
     const afterMin = clamped > 0 ? this.minuteOf(clamped - 1) : -1;
     const events = this.sim.eventsBetween(afterMin, minute, this.tsOf(clamped));
 
+    const tsMs = this.baseTs + clamped * this.config.tickServerMs;
     return {
       fixtureId: this.fixture.id,
       seq: clamped,
-      tsMs: this.baseTs + clamped * this.config.tickServerMs,
+      tsMs,
       minute,
       phase,
       score,
@@ -239,6 +246,7 @@ export class MarketTickGenerator {
       fair,
       events,
       anomaly,
+      tempo: this.tempo.snapshot(minute, tsMs),
     };
   }
 

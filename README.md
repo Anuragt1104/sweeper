@@ -11,6 +11,13 @@ The four public outcomes are:
 
 Live means TxLINE mainnet level 12. If live hydration or either upstream stream fails, the UI says so and does not switch to simulation. Simulation and replay are always labelled.
 
+## Shock Strip (in progress)
+
+Spatial memory under the Horizon Deck — three named strategies **Tempo · Odds · Hybrid**. Spec, ideation, and handoff:
+
+- [`docs/shock-strip/README.md`](./docs/shock-strip/README.md)
+- [`docs/shock-strip/HANDOFF.md`](./docs/shock-strip/HANDOFF.md)
+
 ## Tonight’s fixture
 
 The default live fixture is France vs Spain, TxLINE fixture `18237038`, scheduled for 00:30 IST. Set the replacement/rotated TxLINE token only in `.env.local`; never commit it, print it, put it in a tunnel command, or send it to the browser.

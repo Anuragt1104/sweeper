@@ -15,6 +15,13 @@ import { MarketTickGenerator, type ScenarioEvent } from "@/lib/market/ticks";
 import type { Fixture } from "@/lib/txline/types";
 import { HEARTBEAT_MS, LiveSource, LiveTickAssembler, openLiveMatchFeed, type LiveFeedHandle } from "@/lib/txline/live";
 import type { FeedHealth } from "@/lib/engine/state";
+import {
+  apiFootballConfigured,
+  fetchTempoSnapshot,
+  resolveApiFootballFixtureId,
+} from "@/lib/tempo/api-football";
+
+const TEMPO_POLL_MS = 45_000;
 
 export interface StartOptions {
   fixtureId?: string;
@@ -41,6 +48,7 @@ class EngineManager {
   private subscribers = new Set<Subscriber>();
   private liveFeed: LiveFeedHandle | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private tempoTimer: ReturnType<typeof setInterval> | null = null;
 
   async resolveFixture(fixtureId?: string, mode: "simulation" | "live" = "simulation"): Promise<Fixture> {
     if (mode === "live") {
@@ -98,6 +106,10 @@ class EngineManager {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
+    }
+    if (this.tempoTimer) {
+      clearInterval(this.tempoTimer);
+      this.tempoTimer = null;
     }
   }
 
@@ -235,6 +247,8 @@ class EngineManager {
           this.notify();
         }
       }, HEARTBEAT_MS);
+
+      void this.startTempoEnrichment(engine);
     } catch (error) {
       updateHealth({
         status: "offline",
@@ -243,6 +257,60 @@ class EngineManager {
       });
     }
     return engine.getState();
+  }
+
+  /** Optional API-Football shots/SOT poller — UI enrichment only. */
+  private async startTempoEnrichment(engine: SweeperEngine): Promise<void> {
+    if (!apiFootballConfigured()) {
+      engine.setTempoStatus("unavailable", "Set API_FOOTBALL_KEY to enable live shots / SOT", "none");
+      this.notify();
+      return;
+    }
+
+    engine.setTempoStatus("polling", "Resolving API-Football fixture…", "api-football");
+    this.notify();
+
+    let apiFixtureId: number | null = null;
+    try {
+      apiFixtureId = await resolveApiFootballFixtureId(engine.fixture);
+    } catch (error) {
+      engine.setTempoStatus(
+        "error",
+        error instanceof Error ? error.message : "API-Football fixture resolve failed",
+        "api-football",
+      );
+      this.notify();
+      return;
+    }
+
+    if (!apiFixtureId) {
+      engine.setTempoStatus("unavailable", "No API-Football fixture match for this TxLINE game", "api-football");
+      this.notify();
+      return;
+    }
+
+    const poll = async () => {
+      if (this.engine !== engine || engine.isFinished) return;
+      try {
+        const minute = engine.getState().current?.minute;
+        const snap = await fetchTempoSnapshot(engine.fixture, apiFixtureId!, minute);
+        if (this.engine !== engine || !snap) return;
+        engine.applyTempo(snap);
+        this.notify();
+      } catch (error) {
+        engine.setTempoStatus(
+          "error",
+          error instanceof Error ? error.message : "API-Football stats poll failed",
+          "api-football",
+        );
+        this.notify();
+      }
+    };
+
+    await poll();
+    this.tempoTimer = setInterval(() => {
+      void poll();
+    }, TEMPO_POLL_MS);
   }
 
   /** Run a throwaway session to completion (replay lab). */

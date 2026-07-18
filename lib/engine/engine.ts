@@ -47,6 +47,8 @@ import {
 import { HorizonMachine } from "@/lib/horizon/machine";
 import type { FrequencyArtifact } from "@/lib/horizon/probability";
 import { loadFrequencyArtifact } from "@/lib/horizon/artifact";
+import { ShockStripAssembler } from "@/lib/tempo/strip";
+import type { TempoSnapshot } from "@/lib/tempo/types";
 
 export class SweeperEngine {
   readonly sessionId: string;
@@ -61,6 +63,7 @@ export class SweeperEngine {
   private exchange: PaperExchange;
   private ledger = new AuditLedger();
   private horizon: HorizonMachine;
+  private shockStrip = new ShockStripAssembler();
 
   private cursor = 0;
   private status: EngineState["status"] = "idle";
@@ -124,6 +127,23 @@ export class SweeperEngine {
     this.feedHealth = { ...next };
   }
 
+  /** Live tempo enrichment (API-Football). Does not touch Horizon. */
+  applyTempo(snapshot: TempoSnapshot): void {
+    this.shockStrip.applyTempo({
+      ...snapshot,
+      minute: snapshot.minute || this.currentTick?.minute || 0,
+    });
+    this.updatedAtMs = Date.now();
+  }
+
+  setTempoStatus(
+    status: "ready" | "polling" | "unavailable" | "error",
+    detail: string,
+    source: "sim" | "api-football" | "none" = "none",
+  ): void {
+    this.shockStrip.setTempoStatus(status, detail, source);
+  }
+
   /** Mark every portfolio to the model fair price for the given tick. */
   private markAll(tick: MarketTick) {
     for (const m of tick.fair.markets) {
@@ -165,6 +185,12 @@ export class SweeperEngine {
 
     // Horizon records are bound to the same triggering tick hash as trading.
     this.horizon.processTick(tick, { tickHash, processedAtMs });
+    const horizonState = this.horizon.getState();
+    // Shock strip is UI-only; never feeds Horizon settlement.
+    this.shockStrip.ingestTick(tick, {
+      oddsSwing: horizonState.oddsSwing,
+      lastCollapse: horizonState.lastCollapse,
+    });
 
     // 2. sentinel
     const { assessment, features } = this.sentinel.process(tick);
@@ -371,6 +397,7 @@ export class SweeperEngine {
       settlement: this.settlement,
       feedHealth: this.feedHealth,
       horizon: this.horizon.getState(),
+      shockStrip: this.shockStrip.getState(),
       anchorAvailable: this.anchorAvailable(),
       startedAtMs: this.startedAtMs,
       updatedAtMs: this.updatedAtMs,

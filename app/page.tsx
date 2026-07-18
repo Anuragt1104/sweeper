@@ -15,6 +15,7 @@ import {
 } from "@/components/panels";
 import { ReplayLab } from "@/components/replay";
 import { HorizonExperience } from "@/components/horizon";
+import { ShockStrip } from "@/components/shock-strip";
 
 interface QueryLaunch {
   fixtureId: string;
@@ -134,6 +135,8 @@ export default function Console() {
       {queryNotice && <div className="query-notice"><span>REPLAY</span>{queryNotice}</div>}
 
       <HorizonExperience state={state} replayLabel={Boolean(queryLaunch)} />
+
+      {state?.shockStrip && <ShockStrip state={state} />}
 
       <Controls
         fixtures={fixtures}

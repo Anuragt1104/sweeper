@@ -10,6 +10,7 @@ import type { PortfolioMetrics } from "@/lib/execution/portfolio";
 import type { SettlementReceipt } from "@/lib/proof/settlement";
 import type { AnomalyKind } from "@/lib/market/ticks";
 import type { HorizonState } from "@/lib/horizon/machine";
+import type { ShockStripState } from "@/lib/tempo/types";
 
 export type RunStatus = "idle" | "running" | "finished";
 
@@ -137,6 +138,8 @@ export interface EngineState {
   settlement: SettlementReceipt | null;
   feedHealth: FeedHealth;
   horizon: HorizonState;
+  /** Dual-track shock strip — material (TxLINE) + tempo enrichment (non-settlement). */
+  shockStrip: ShockStripState;
   /** whether Solana devnet anchoring is configured on the server. */
   anchorAvailable: boolean;
   startedAtMs: number;
