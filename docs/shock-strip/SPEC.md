@@ -1,6 +1,6 @@
 # Shock Strip — Product Spec
 
-**Status:** ready-for-agent  
+**Status:** shipped three-track contract; ideation formulas remain tunable  
 **Project:** Sweeper × N+1 Machine  
 **Feature slug:** `shock-strip`  
 **Primary test seam:** `ShockStripAssembler` → serializable `ShockStripState`  
@@ -60,7 +60,7 @@ Baseline formulas and severity weights in ideation docs are a **starting point**
 32. As an implementer, I want existing Horizon settlement tests to remain green without modification for enrichment, so that the proof story stays intact.
 33. As a product owner, I want free-kick location and continuous XY tracking out of scope, so that we do not block on data we do not have.
 34. As a desk operator, I want phase markers (kick-off, half-time, full-time) on Tempo at low severity, so that structure of the match is visible.
-35. As an implementer, I want documentation that treats current dual-track code as a prototype base, so that the next agent can evolve it into the three named tracks without fear of “breaking frozen weights.”
+35. As an implementer, I want documentation that treats Tempo · Odds · Hybrid as the shipped contract, so that further work improves strategies inside that frame.
 
 ## Implementation Decisions
 
@@ -75,7 +75,7 @@ Baseline formulas and severity weights in ideation docs are a **starting point**
 9. **UI:** Shock Strip panel under Horizon Deck; shared minute axis; Odds view chips; Tempo cumulative overlays; Hybrid thesis + pressure + collapses.
 10. **Secrets:** `API_FOOTBALL_KEY` / TxLINE tokens server-only via env; never sent to clients.
 11. **Respect existing Horizon ADRs:** material settlement remains goals/cards (and Quiet at window end); enrichment and corners do not become Horizon settlement events in v1.
-12. **Current codebase note:** a dual-track prototype already exists under the tempo library and Shock Strip component. Treat it as a base to evolve into the three named tracks—not as the final product contract.
+12. **Current codebase note:** Tempo · Odds · Hybrid is the shipped contract under `lib/tempo/` and `components/shock-strip.tsx`. Treat dual-track docs/history as superseded.
 
 ## Testing Decisions
 

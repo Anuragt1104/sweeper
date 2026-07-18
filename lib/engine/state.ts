@@ -198,7 +198,7 @@ export interface EngineState {
   tradeReadiness: TradeReadiness;
   supervisor: SupervisorStatus | null;
   horizon: HorizonState;
-  /** Dual-track shock strip — material (TxLINE) + tempo enrichment (non-settlement). */
+  /** Shock Strip — Tempo · Odds · Hybrid (UI-only; never settles Horizon). */
   shockStrip: ShockStripState;
   /** whether Solana devnet anchoring is configured on the server. */
   anchorAvailable: boolean;

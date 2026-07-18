@@ -214,6 +214,7 @@ export class SweeperEngine {
     this.shockStrip.ingestTick(tick, {
       oddsSwing: horizonState.oddsSwing,
       lastCollapse: horizonState.lastCollapse,
+      horizon: horizonState.current,
     });
 
     // 2. sentinel

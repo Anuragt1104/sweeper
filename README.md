@@ -10,7 +10,7 @@ Live means TxLINE mainnet level 12 only. Simulation and recorded-live replay are
 - **Railway (judge target):** https://sweeper-production-0ef9.up.railway.app
 - **Access deadline:** July 19, 2026 23:59 UTC
 
-## Shock Strip (in progress)
+## Shock Strip
 
 Spatial memory under the Horizon Deck — three named strategies **Tempo · Odds · Hybrid**. Spec, ideation, and handoff:
 

@@ -1,17 +1,15 @@
 /**
  * Deterministic tempo synthesis for simulation/replay.
- *
- * Shots/SOT are enrichment-only. Goals from MatchSimulation are treated as
- * on-target shots so the tempo curve stays coherent with the scoreline.
+ * Enrichment-only — never settles Horizon.
  */
 import type { Fixture } from "@/lib/txline/types";
 import { hashStringToSeed, makeRng } from "@/lib/util/rng";
-import type { TempoCounts, TempoEvent, TempoSnapshot } from "@/lib/tempo/types";
+import type { TempoCounts, TempoEvent, TempoKind, TempoSnapshot } from "@/lib/tempo/types";
 import { emptyTempoCounts } from "@/lib/tempo/diff";
 
 interface SimTempoEvent {
   minute: number;
-  kind: "shot" | "shot_on_target";
+  kind: TempoKind;
   side: "home" | "away";
 }
 
@@ -24,14 +22,37 @@ export class TempoSynthesizer {
     this.events = buildTempoTimeline(fixture, materialEvents);
   }
 
-  /** Cumulative counts at (or before) a match minute. */
   countsAt(minute: number): TempoCounts {
     const counts = emptyTempoCounts();
+    let possHome = 50;
     for (const e of this.events) {
       if (e.minute > minute) continue;
-      counts.shots[e.side] += 1;
-      if (e.kind === "shot_on_target") counts.sot[e.side] += 1;
+      switch (e.kind) {
+        case "shot":
+          counts.shots[e.side] += 1;
+          break;
+        case "shot_on_target":
+          counts.shots[e.side] += 1;
+          counts.sot[e.side] += 1;
+          break;
+        case "foul":
+          counts.fouls[e.side] += 1;
+          break;
+        case "offside":
+          counts.offsides[e.side] += 1;
+          break;
+        case "attack":
+          counts.attacks[e.side] += 1;
+          break;
+        case "dangerous_attack":
+          counts.dangerousAttacks[e.side] += 1;
+          break;
+        case "possession_shift":
+          possHome = e.side === "home" ? Math.min(70, possHome + 4) : Math.max(30, possHome - 4);
+          break;
+      }
     }
+    counts.possession = { home: possHome, away: 100 - possHome };
     return counts;
   }
 
@@ -55,7 +76,7 @@ export class TempoSynthesizer {
           tsMs,
           kind: e.kind,
           side: e.side,
-          label: e.kind === "shot_on_target" ? `Shot on target — ${sideName(this.fixture, e.side)}` : `Shot — ${sideName(this.fixture, e.side)}`,
+          label: `${labelFor(e.kind)} — ${sideName(this.fixture, e.side)}`,
           source: "sim",
         });
       }
@@ -70,37 +91,66 @@ function buildTempoTimeline(fixture: Fixture, material: MatchEventLike[]): SimTe
   const rng = makeRng(hashStringToSeed(fixture.id + ":tempo"));
   const ev: SimTempoEvent[] = [];
 
-  // Goals imply an on-target shot at that minute.
   for (const m of material) {
     if (m.kind === "goal" && m.side) {
       ev.push({ minute: m.minute, kind: "shot_on_target", side: m.side });
+      ev.push({ minute: Math.max(0, m.minute - 0.2), kind: "dangerous_attack", side: m.side });
     }
   }
 
   const ratingShare = fixture.home.rating / (fixture.home.rating + fixture.away.rating);
-  const shotsH = 8 + Math.round(rng.next() * 6) + Math.round(ratingShare * 4);
-  const shotsA = 8 + Math.round(rng.next() * 6) + Math.round((1 - ratingShare) * 4);
+  placeKind(ev, "home", "shot", 8 + Math.round(rng.next() * 6) + Math.round(ratingShare * 4), rng, 0.35);
+  placeKind(ev, "away", "shot", 8 + Math.round(rng.next() * 6) + Math.round((1 - ratingShare) * 4), rng, 0.35);
+  placeSimple(ev, "foul", 10 + Math.round(rng.next() * 8), rng);
+  placeSimple(ev, "offside", 4 + Math.round(rng.next() * 4), rng);
+  placeSimple(ev, "attack", 18 + Math.round(rng.next() * 10), rng);
+  placeSimple(ev, "dangerous_attack", 8 + Math.round(rng.next() * 6), rng);
+  placeSimple(ev, "possession_shift", 6 + Math.round(rng.next() * 4), rng);
 
-  placeShots(ev, "home", shotsH, rng);
-  placeShots(ev, "away", shotsA, rng);
-
-  ev.sort((a, b) => a.minute - b.minute || (a.kind === "shot_on_target" ? -1 : 1));
+  ev.sort((a, b) => a.minute - b.minute);
   return ev;
 }
 
-function placeShots(
+function placeKind(
   ev: SimTempoEvent[],
   side: "home" | "away",
-  targetShots: number,
+  kind: "shot",
+  target: number,
   rng: ReturnType<typeof makeRng>,
+  onTargetRate: number,
 ) {
-  const existing = ev.filter((e) => e.side === side).length;
-  const need = Math.max(0, targetShots - existing);
+  const existing = ev.filter((e) => e.side === side && (e.kind === "shot" || e.kind === "shot_on_target")).length;
+  const need = Math.max(0, target - existing);
   for (let i = 0; i < need; i++) {
     const minute = 1 + Math.floor(rng.next() * 89);
-    // ~35% of enrichment shots are on target
-    const onTarget = rng.next() < 0.35;
+    const onTarget = rng.next() < onTargetRate;
     ev.push({ minute, kind: onTarget ? "shot_on_target" : "shot", side });
+  }
+}
+
+function placeSimple(
+  ev: SimTempoEvent[],
+  kind: Exclude<TempoKind, "shot" | "shot_on_target">,
+  count: number,
+  rng: ReturnType<typeof makeRng>,
+) {
+  for (let i = 0; i < count; i++) {
+    const minute = 1 + Math.floor(rng.next() * 89);
+    const side = rng.next() < 0.52 ? "home" : "away";
+    ev.push({ minute, kind, side });
+  }
+}
+
+function labelFor(kind: TempoKind): string {
+  switch (kind) {
+    case "shot_on_target":
+      return "Shot on target";
+    case "dangerous_attack":
+      return "Dangerous attack";
+    case "possession_shift":
+      return "Possession shift";
+    default:
+      return kind.charAt(0).toUpperCase() + kind.slice(1);
   }
 }
 

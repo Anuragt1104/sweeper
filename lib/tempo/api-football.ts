@@ -81,6 +81,16 @@ export async function fetchTempoSnapshot(
   const shotsAway = readStat(awayRow, ["Total Shots", "Shots Total", "shots"]);
   const sotHome = readStat(homeRow, ["Shots on Goal", "Shots on Target", "shots on target"]);
   const sotAway = readStat(awayRow, ["Shots on Goal", "Shots on Target", "shots on target"]);
+  const foulsHome = readStat(homeRow, ["Fouls"]);
+  const foulsAway = readStat(awayRow, ["Fouls"]);
+  const offHome = readStat(homeRow, ["Offsides"]);
+  const offAway = readStat(awayRow, ["Offsides"]);
+  const attHome = readStat(homeRow, ["Attacks", "Total Attacks"]);
+  const attAway = readStat(awayRow, ["Attacks", "Total Attacks"]);
+  const dangHome = readStat(homeRow, ["Dangerous Attacks"]);
+  const dangAway = readStat(awayRow, ["Dangerous Attacks"]);
+  const possHome = readStat(homeRow, ["Ball Possession", "Possession"]);
+  const possAway = readStat(awayRow, ["Ball Possession", "Possession"]);
 
   return {
     fixtureId: fixture.id,
@@ -89,6 +99,14 @@ export async function fetchTempoSnapshot(
     counts: {
       shots: { home: shotsHome, away: shotsAway },
       sot: { home: sotHome, away: sotAway },
+      fouls: { home: foulsHome, away: foulsAway },
+      offsides: { home: offHome, away: offAway },
+      attacks: { home: attHome, away: attAway },
+      dangerousAttacks: { home: dangHome, away: dangAway },
+      possession: {
+        home: possHome || 50,
+        away: possAway || (possHome ? 100 - possHome : 50),
+      },
     },
     source: "api-football",
   };

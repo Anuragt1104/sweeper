@@ -1,7 +1,5 @@
-# Shock Strip — local tracker
+# Shock Strip scratch
 
-**Status:** ready-for-agent
+Tracker copy of the product spec. Canonical docs live in `docs/shock-strip/`.
 
-- Spec: [spec.md](./spec.md)
-- Durable docs: `docs/shock-strip/`
-- Issues: create under `issues/` via `/to-issues` when splitting work
+**Shipped:** Tempo · Odds · Hybrid (see `docs/shock-strip/ARCHITECTURE.md`).
