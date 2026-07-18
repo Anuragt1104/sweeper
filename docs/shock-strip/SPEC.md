@@ -60,22 +60,23 @@ Baseline formulas and severity weights in ideation docs are a **starting point**
 32. As an implementer, I want existing Horizon settlement tests to remain green without modification for enrichment, so that the proof story stays intact.
 33. As a product owner, I want free-kick location and continuous XY tracking out of scope, so that we do not block on data we do not have.
 34. As a desk operator, I want phase markers (kick-off, half-time, full-time) on Tempo at low severity, so that structure of the match is visible.
-35. As an implementer, I want documentation that treats Tempo · Odds · Hybrid as the shipped contract, so that further work improves strategies inside that frame.
+35. As an implementer, I want documentation that treats Tempo · Odds · Hybrid as the shipped strip contract, so that further work improves strategies inside that frame.
+36. As a product owner, I want the strip to feed AgentContext desk signals (Horizon + Hybrid + tempo intensity) so Hybrid Thesis and peers can trade on the same minute axis — without inventing a fourth strip track.
 
 ## Implementation Decisions
 
-1. **Three named strategies only:** `tempo` | `odds` | `hybrid`. UI, docs, and types use these names. Do not invent a fourth strategy. Do not call them top/middle/bottom.
+1. **Three named strategies only:** `tempo` | `odds` | `hybrid`. UI, docs, and types use these names. Do not invent a fourth strategy. Do not call them top/middle/bottom. **Hybrid Thesis is an agent**, not a fourth strip track.
 2. **Primary module:** a Shock Strip assembler that ingests market ticks (and Horizon side-state) and emits serializable strip state on the engine snapshot consumed by SSE/UI.
-3. **Engine order:** Horizon processes the tick first; the strip assembles after, reading thesis/collapse/odds-swing. Strip output never feeds Horizon settlement, agents, or proof settlement.
+3. **Engine order:** Horizon processes the tick first; the strip assembles after, reading thesis/collapse/odds-swing. Strip output never feeds Horizon settlement. Agents may read Horizon + strip Hybrid/Tempo via `AgentContext.desk`.
 4. **Tempo inputs:** TxLINE score-derived events (goal, yellow, red, corner, phase) plus optional enrichment snapshot (shots, SOT, fouls, offsides, attacks, dangerous attacks, possession). Enrichment source is sim in simulation/replay; API-Football when configured in live.
 5. **Odds inputs:** TxLINE odds markets only. Multi-view switcher over at least: next_score (default), ou_25, match_1x2, corners_ou, swing (derived). All views that have data are recorded each tick; UI selects which to plot.
 6. **Hybrid inputs:** Horizon thesis probability, Tempo intensity over a short window, Odds velocity from short-term favorite (prefer next_score, else 1X2), collapse markers from Horizon.
 7. **Baseline formulas are ideation, not law:** example pressure blend `0.55 * tempoIntensity + 0.45 * oddsVelocity` and severity tables may be improved. Keep coefficients configurable or clearly isolated so strategy iteration does not require rewriting the strip contract.
 8. **Serializable state shape (prototype decision):** tracks expose series + markers + status; Odds exposes a map of views; Hybrid exposes thesisProb/pressure series plus collapse markers. Exact field names may evolve if tests and SSE payload stay coherent.
-9. **UI:** Shock Strip panel under Horizon Deck; shared minute axis; Odds view chips; Tempo cumulative overlays; Hybrid thesis + pressure + collapses.
+9. **UI:** Agent Arena Desk is the console hero; strip sits as shared signals under Horizon. Shared minute axis; Odds view chips; Hybrid thesis + pressure + collapses.
 10. **Secrets:** `API_FOOTBALL_KEY` / TxLINE tokens server-only via env; never sent to clients.
 11. **Respect existing Horizon ADRs:** material settlement remains goals/cards (and Quiet at window end); enrichment and corners do not become Horizon settlement events in v1.
-12. **Current codebase note:** Tempo · Odds · Hybrid is the shipped contract under `lib/tempo/` and `components/shock-strip.tsx`. Treat dual-track docs/history as superseded.
+12. **Current codebase note:** Tempo · Odds · Hybrid is the shipped strip contract under `lib/tempo/` and `components/shock-strip.tsx`. Hybrid Thesis is an agent that consumes desk signals — not a fourth strip track.
 
 ## Testing Decisions
 
@@ -95,7 +96,6 @@ Baseline formulas and severity weights in ideation docs are a **starting point**
 - Free-kick / set-piece XY location or continuous player/ball tracking
 - Using enrichment (shots, fouls, etc.) to settle or falsify Horizon branches
 - Replacing the Horizon Deck UI
-- Changing Sentinel/agent trading logic for this feature
 - Committing API keys or live tokens
 - FIFA branding / who-wins escrow products
 

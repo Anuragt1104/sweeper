@@ -49,6 +49,20 @@ export interface StrategyParams {
   guardQuality: number;
   /** Min confidence on a sharp-move signal before the momentum agent acts. */
   momentumMinConfidence: number;
+  /** Min Hybrid thesis probability before Hybrid Thesis agent acts. */
+  hybridThesisMinProb: number;
+  /** Min (Horizon thesisProb − market implied) edge for Hybrid Thesis. */
+  hybridThesisEdge: number;
+  /** Match-minutes after SURPRISE / THESIS DEAD during which Hybrid Thesis stands down. */
+  hybridThesisCollapseCooldownMin: number;
+  /** Size multiplier for Hybrid Thesis (keeps it selective vs baseSize). */
+  hybridThesisSizeMult: number;
+  /** Require non-Quiet THESIS (ignore Quiet→ACTION) unless hybrid slope confirms. */
+  hybridThesisRequireMaterialOrSlope: boolean;
+  /** homePathVol at/above this ⇒ CHAOTIC regime (directionals stand down). */
+  pathVolChaotic: number;
+  /** homePathVol at/below this ⇒ CALM regime (optional size bump). */
+  pathVolCalm: number;
 }
 
 export interface AnomalyParams {
@@ -99,9 +113,16 @@ export const DEFAULT_CONFIG: EngineConfig = {
     mmMaxInventory: 120,
   },
   strategy: {
-    valueEdge: 0.035,
-    guardQuality: 55,
-    momentumMinConfidence: 0.5,
+    valueEdge: 0.028,
+    guardQuality: 52,
+    momentumMinConfidence: 0.45,
+    hybridThesisMinProb: 0.26,
+    hybridThesisEdge: 0.03,
+    hybridThesisCollapseCooldownMin: 2.0,
+    hybridThesisSizeMult: 0.5,
+    hybridThesisRequireMaterialOrSlope: true,
+    pathVolChaotic: 0.065,
+    pathVolCalm: 0.01,
   },
   anomaly: {
     staleRate: 2,

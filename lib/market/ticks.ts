@@ -36,6 +36,11 @@ import type { PricingProvenance } from "@/lib/pricing/types";
 
 export type AnomalyKind = "stale" | "suspend" | "outlier";
 
+/** Optional tempo enrichment source (sim synthesizer or recorded artifact). */
+export interface TempoProvider {
+  snapshot(minute: number, tsMs: number): TempoSnapshot;
+}
+
 /** A forced anomaly the replay lab can inject at a specific match minute. */
 export interface ScenarioEvent {
   kind: AnomalyKind;
@@ -98,15 +103,22 @@ export class MarketTickGenerator {
   readonly config: EngineConfig;
   readonly totalTicks: number;
   private sim: MatchSimulation;
-  private tempo: TempoSynthesizer;
+  private tempo: TempoProvider;
   private windows: AnomalyWindow[] = [];
   private baseTs: number;
 
-  constructor(fixture: Fixture, config: EngineConfig, scenario: ScenarioEvent[] = []) {
+  constructor(
+    fixture: Fixture,
+    config: EngineConfig,
+    scenario: ScenarioEvent[] = [],
+    tempoProvider?: TempoProvider,
+  ) {
     this.fixture = fixture;
     this.config = config;
     this.sim = new MatchSimulation(fixture);
-    this.tempo = new TempoSynthesizer(fixture, this.sim.eventsBetween(-1, MATCH_MINUTES, new Date(0).toISOString()));
+    this.tempo =
+      tempoProvider ??
+      new TempoSynthesizer(fixture, this.sim.eventsBetween(-1, MATCH_MINUTES, new Date(0).toISOString()));
     this.totalTicks = Math.floor(MATCH_MINUTES / config.tickMinutes) + 1;
     // Anchor server time to the fixture so timestamps are stable across runs.
     this.baseTs = 1_750_000_000_000 + (hashStringToSeed(fixture.id) % 100_000) * 1000;

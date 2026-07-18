@@ -38,10 +38,25 @@ const PHASE_MAP: Record<string, GamePhase> = {
   END: GamePhase.Finished,
   I: GamePhase.HalfTime,
   A: GamePhase.Abandoned,
-  C: GamePhase.Abandoned,
-  TXCC: GamePhase.PreMatch,
-  TXCS: GamePhase.PreMatch,
+  C: GamePhase.Cancelled,
+  TXCC: GamePhase.CoveragePaused,
+  TXCS: GamePhase.CoveragePaused,
   P: GamePhase.PreMatch,
+};
+
+/** Official TxLINE SoccerFixtureStatus notes (not cooling breaks). */
+const STATUS_NOTES: Record<string, string> = {
+  C: "Cancelled",
+  TXCC: "Coverage cancelled",
+  TXCS: "Coverage suspended",
+  I: "Interruption",
+  HT: "Half-time",
+  HTET: "Extra-time half-time",
+  WET: "Extra time soon",
+  WPE: "Penalties soon",
+  PE: "Penalties",
+  P: "Postponed",
+  A: "Abandoned",
 };
 
 const FLAGS: Record<string, string> = {
@@ -120,6 +135,8 @@ export function normalizeScoreRecord(raw: unknown, fixture: Fixture): Normalized
   const p2 = optionalObject(scoreSoccer, "participant2");
   const stats = optionalObject(object, "stats");
 
+  const coverageSecondary = optionalBoolean(object, "coverageSecondaryData", "CoverageSecondaryData");
+  const statusNote = STATUS_NOTES[state];
   const snapshot: ScoreSnapshot = {
     fixtureId,
     seq,
@@ -130,6 +147,8 @@ export function normalizeScoreRecord(raw: unknown, fixture: Fixture): Normalized
     yellow: orient(pairFromTotal(p1, p2, "YellowCards", stats, 3, 4), participant1IsHome),
     red: orient(pairFromTotal(p1, p2, "RedCards", stats, 5, 6), participant1IsHome),
     corners: orient(pairFromTotal(p1, p2, "Corners", stats, 7, 8), participant1IsHome),
+    ...(statusNote ? { statusNote } : {}),
+    ...(coverageSecondary === undefined ? {} : { coverageSecondary }),
     lifecycle: {
       action,
       gameState: state,

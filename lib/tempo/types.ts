@@ -39,7 +39,7 @@ export type TempoKind =
   | "dangerous_attack"
   | "possession_shift";
 
-export type TempoSource = "sim" | "api-football" | "none";
+export type TempoSource = "sim" | "api-football" | "recorded" | "none";
 
 export interface SideCounts {
   home: number;
@@ -83,7 +83,7 @@ export interface ShockSpike {
   kind: string;
   label: string;
   side?: "home" | "away";
-  source: "txline" | "sim" | "api-football" | "horizon";
+  source: "txline" | "sim" | "api-football" | "recorded" | "horizon";
 }
 
 export interface TempoSeriesPoint {
@@ -133,6 +133,24 @@ export interface HybridSeriesPoint {
   thesis: string | null;
 }
 
+/** Per-bet Tempo · Odds · Hybrid sample (one series per Odds view lens). */
+export interface StrategyLensPoint {
+  minute: number;
+  tempoIntensity: number;
+  oddsProb: number;
+  hybridProb: number;
+  pressure: number;
+  label: string | null;
+}
+
+export interface StrategyLensSeries {
+  id: OddsViewId;
+  label: string;
+  available: boolean;
+  blurb: string;
+  series: StrategyLensPoint[];
+}
+
 export interface ShockStripState {
   tempo: {
     series: TempoSeriesPoint[];
@@ -151,6 +169,8 @@ export interface ShockStripState {
     series: HybridSeriesPoint[];
     markers: ShockSpike[];
   };
+  /** One graph-worth of Tempo · Odds · Hybrid per bet lens. */
+  strategies: Record<OddsViewId, StrategyLensSeries>;
 }
 
 export const ODDS_VIEW_ORDER: OddsViewId[] = [
@@ -194,5 +214,12 @@ export const EMPTY_SHOCK_STRIP: ShockStripState = {
   hybrid: {
     series: [],
     markers: [],
+  },
+  strategies: {
+    next_score: { id: "next_score", label: "Next score", available: false, blurb: "", series: [] },
+    ou_25: { id: "ou_25", label: "O/U 2.5", available: false, blurb: "", series: [] },
+    match_1x2: { id: "match_1x2", label: "Match 1X2", available: false, blurb: "", series: [] },
+    corners_ou: { id: "corners_ou", label: "Corners O/U", available: false, blurb: "", series: [] },
+    swing: { id: "swing", label: "Swing", available: false, blurb: "", series: [] },
   },
 };

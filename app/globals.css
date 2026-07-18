@@ -181,6 +181,322 @@ body {
   box-shadow: 0 22px 80px rgba(0, 0, 0, 0.28);
 }
 
+.horizon-shell.horizon-compact {
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.horizon-topline-compact {
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+.horizon-strip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.horizon-strip-card {
+  padding: 10px 12px;
+  border: 1px solid var(--color-line2);
+  border-radius: 12px;
+  background: rgba(11, 13, 17, 0.88);
+  min-height: 0;
+}
+
+.horizon-strip-label {
+  color: var(--color-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.horizon-strip-prob {
+  margin-top: 6px;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 750;
+  color: var(--outcome);
+  letter-spacing: -0.04em;
+}
+
+.horizon-strip-prob small {
+  font-size: 12px;
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+
+.horizon-strip-card .horizon-bar {
+  margin: 8px 0 6px;
+}
+
+.horizon-strip-card .horizon-badges {
+  min-height: 18px;
+}
+
+.horizon-empty-compact {
+  /* Match active strip height so first Horizon publish doesn't jump the page */
+  min-height: 118px;
+  gap: 8px;
+  flex-direction: column;
+  text-align: center;
+  padding: 12px;
+}
+
+.horizon-empty-compact p {
+  margin-top: 0;
+}
+
+.score-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  max-height: 28px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.score-chip-row .chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.desk-hero {
+  min-height: 520px;
+}
+
+.desk-hero__chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  max-height: 28px;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.desk-hero__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 16px;
+  min-height: 36px;
+  align-items: center;
+}
+
+.desk-hero__path {
+  min-height: 92px;
+}
+
+.desk-hero__path-card {
+  min-height: 84px;
+}
+
+.desk-hero__path-stats {
+  min-height: 28px;
+}
+
+.agent-detail {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-detail__why {
+  min-height: 64px;
+}
+
+.agent-detail__inputs {
+  min-height: 24px;
+}
+
+.agent-detail__positions {
+  min-height: 72px;
+  overflow: hidden;
+}
+
+.arena-wrap {
+  min-height: 360px;
+}
+
+.arena-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.arena-table th:nth-child(1),
+.arena-table td:nth-child(1) {
+  width: 38%;
+}
+
+.arena-row-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 118px;
+  min-height: 18px;
+}
+
+.arena-footer {
+  min-height: 52px;
+}
+
+.strategies-chart {
+  border-color: var(--color-line2);
+  min-height: 780px;
+}
+
+.strategies-chart__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.strategies-chart__viewport {
+  height: 200px;
+  overflow: hidden;
+}
+
+.strategies-chart__viewport svg {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+
+.lens-chart-head {
+  min-height: 44px;
+}
+
+.lens-chart-metrics {
+  min-height: 18px;
+}
+
+.shell-slot {
+  min-height: inherit;
+}
+
+.score-header-slot {
+  min-height: 112px;
+}
+
+.causal-slot {
+  min-height: 148px;
+}
+
+.shock-slot {
+  min-height: 780px;
+}
+
+.strategy-analysis-slot {
+  min-height: 140px;
+}
+
+.query-notice {
+  min-height: 40px;
+}
+
+.supervisor-line {
+  min-height: 18px;
+}
+
+.horizon-empty-compact p {
+  margin-top: 0;
+}
+
+.advanced-panel {
+  overflow: hidden;
+}
+
+.advanced-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-summary::after {
+  content: "+";
+  color: var(--color-faint);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+details[open] > .advanced-summary::after {
+  content: "−";
+}
+
+.strategies-chart {
+  border-color: var(--color-line2);
+}
+
+.strategy-hover-node {
+  position: absolute;
+  z-index: 20;
+  width: 200px;
+  pointer-events: none;
+  border: 1px solid var(--color-line2);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(22, 26, 35, 0.97), rgba(12, 14, 19, 0.97));
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  padding: 10px 11px;
+  font-size: 11px;
+}
+
+.strategy-hover-node__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.strategy-hover-node__rows {
+  display: grid;
+  gap: 4px;
+}
+
+.strategy-hover-node__row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.strategy-hover-node__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.strategy-hover-node__events {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--color-line);
+  display: grid;
+  gap: 3px;
+}
+
+.strategy-hover-node__event {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
 .horizon-shell::after {
   content: "";
   position: absolute;
@@ -331,10 +647,14 @@ body {
 .horizon-empty-mark { color: var(--color-brand); font: 800 42px var(--font-mono); }
 .horizon-empty p { color: var(--color-faint); font-size: 11px; margin-top: 5px; }
 
-.is-shattering .horizon-card { animation: shatterManifest 400ms cubic-bezier(.2,.8,.2,1); }
-.is-shattering .horizon-card:nth-child(2) { animation-delay: 25ms; }
-.is-shattering .horizon-card:nth-child(3) { animation-delay: 45ms; }
-.is-shattering .horizon-card:nth-child(4) { animation-delay: 65ms; }
+.is-shattering .horizon-card,
+.is-shattering .horizon-strip-card { animation: shatterManifest 400ms cubic-bezier(.2,.8,.2,1); }
+.is-shattering .horizon-card:nth-child(2),
+.is-shattering .horizon-strip-card:nth-child(2) { animation-delay: 25ms; }
+.is-shattering .horizon-card:nth-child(3),
+.is-shattering .horizon-strip-card:nth-child(3) { animation-delay: 45ms; }
+.is-shattering .horizon-card:nth-child(4),
+.is-shattering .horizon-strip-card:nth-child(4) { animation-delay: 65ms; }
 @keyframes shatterManifest {
   0% { opacity: 1; transform: scale(1); filter: blur(0); }
   35% { opacity: .25; transform: scale(.96) rotate(-.5deg); filter: blur(2px); }
@@ -361,29 +681,43 @@ body {
   padding: 12px;
   background: linear-gradient(145deg, rgba(20, 23, 31, .98), rgba(12, 14, 19, .98));
 }
-.causal-step:not(:last-child)::after { content: "→"; float: right; color: var(--color-brand); margin-top: -26px; }
+.causal-step--hot {
+  box-shadow: inset 0 0 0 1px rgba(200, 247, 81, 0.18);
+}
+.desk-hero .panel-head {
+  border-bottom: 1px solid var(--color-line);
+}
 
 @media (max-width: 900px) {
   .horizon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .horizon-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .horizon-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .machine-row { grid-template-columns: 1fr; }
   .causal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .strategies-chart__grid { grid-template-columns: 1fr; }
+  .strategies-chart { min-height: 0; }
+  .desk-hero { min-height: 0; }
+  .desk-hero__summary { grid-template-columns: 1fr 1fr; min-height: 52px; }
+  .shock-slot { min-height: 0; }
 }
 
 @media (max-width: 560px) {
   .horizon-shell { padding: 13px; border-radius: 15px; }
   .horizon-topline { flex-direction: column; }
   .horizon-grid { grid-template-columns: 1fr; }
+  .horizon-strip { grid-template-columns: 1fr 1fr; }
   .horizon-card { min-height: 175px; }
   .horizon-meta-grid { grid-template-columns: 1fr; }
   .machine-metrics { grid-template-columns: repeat(2, 1fr); }
   .control-key-wrap { width: 100%; margin-left: 0; }
   .causal-grid { grid-template-columns: 1fr; }
+  .advanced-summary { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .001ms !important; }
-  .is-shattering .horizon-card { animation: none; outline: 1px solid var(--outcome); }
+  .is-shattering .horizon-card,
+  .is-shattering .horizon-strip-card { animation: none; outline: 1px solid var(--outcome); }
 }
 @keyframes pulse {
   0%,

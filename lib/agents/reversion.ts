@@ -20,7 +20,7 @@ import {
 import { selId } from "@/lib/market/ids";
 import { clamp, deltaToOrder, MIN_TRADE, obsProb } from "@/lib/agents/util";
 
-const DECAY = 0.4;
+const DECAY = 0.55;
 
 export class MeanReversionAgent implements Agent {
   readonly id = "reversion";
@@ -52,7 +52,9 @@ export class MeanReversionAgent implements Agent {
         const ret = sig.evidence.ret ?? 0;
         // fade: spiked up (ret>0, overpriced) → short; dropped → long
         const dir = ret > 0 ? -1 : 1;
-        this.target.set(sig.selId, clamp(dir * base * 0.8, -base, base));
+        const conf = clamp(sig.confidence ?? 0.7, 0.5, 1);
+        const mag = clamp(Math.abs(ret) / 0.04, 0.7, 1.4);
+        this.target.set(sig.selId, clamp(dir * base * 0.9 * conf * mag, -base * 1.2, base * 1.2));
       }
     }
 

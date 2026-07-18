@@ -25,8 +25,11 @@ test("simulation settles against a verified proof and books PnL", () => {
   assert.ok(state.settlement, "should produce a settlement receipt");
   assert.equal(state.settlement!.status, "settled");
   assert.equal(state.settlement!.proof.verified, true);
-  // every agent placed at least some trades over a full match
-  for (const a of state.agents) assert.ok(a.metrics.trades > 0, `${a.id} should trade`);
+  // continuous agents trade; Horizon-opportunistic agents may sit out
+  for (const a of state.agents) {
+    if (a.id === "hybrid_thesis" || a.id === "collapse_fade") continue;
+    assert.ok(a.metrics.trades > 0, `${a.id} should trade`);
+  }
 });
 
 test("every ledger record's inclusion proof verifies", () => {

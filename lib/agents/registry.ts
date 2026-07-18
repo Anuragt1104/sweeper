@@ -4,6 +4,8 @@ import { ValueAgent } from "@/lib/agents/value";
 import { MomentumAgent } from "@/lib/agents/momentum";
 import { MeanReversionAgent } from "@/lib/agents/reversion";
 import { MarketMakerAgent } from "@/lib/agents/maker";
+import { HybridThesisAgent } from "@/lib/agents/hybrid-thesis";
+import { CollapseFadeAgent } from "@/lib/agents/collapse-fade";
 
 export function buildAgents(): Agent[] {
   return [
@@ -12,6 +14,8 @@ export function buildAgents(): Agent[] {
     new MomentumAgent(true), // guarded
     new MeanReversionAgent(),
     new MarketMakerAgent(),
+    new HybridThesisAgent(),
+    new CollapseFadeAgent(),
   ];
 }
 

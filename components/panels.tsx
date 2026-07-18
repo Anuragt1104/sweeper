@@ -21,6 +21,8 @@ export const AGENT_COLOR: Record<string, string> = {
   momentum_guarded: "var(--color-brand)",
   reversion: "var(--color-info)",
   maker: "var(--color-warn)",
+  hybrid_thesis: "#e8c36a",
+  collapse_fade: "#fb9b6f",
 };
 
 export interface FixtureLite {
@@ -38,29 +40,47 @@ export interface FixtureLite {
 export function ScoreHeader({ state }: { state: EngineState }) {
   const c = state.current;
   return (
-    <div className="panel p-4 flex items-center gap-5 flex-wrap">
+    <div className="panel p-4 flex items-center gap-5 score-header-slot">
       <QualityGauge value={state.quality} />
-      <div className="flex-1 min-w-[220px]">
-        <div className="eyebrow mb-1">{state.fixture.competition} · {state.fixture.stage}</div>
-        <div className="flex items-center gap-3 text-2xl font-bold tracking-tight">
-          <span>{state.fixture.home}</span>
-          <span className="tnum text-brand">
+      <div className="flex-1 min-w-0">
+        <div className="eyebrow mb-1 truncate">
+          {state.fixture.competition} · {state.fixture.stage}
+        </div>
+        <div className="flex items-center gap-3 text-2xl font-bold tracking-tight min-w-0">
+          <span className="truncate min-w-0">{state.fixture.home}</span>
+          <span className="tnum text-brand shrink-0">
             {c ? `${c.homeGoals}–${c.awayGoals}` : "–"}
           </span>
-          <span>{state.fixture.away}</span>
+          <span className="truncate min-w-0">{state.fixture.away}</span>
         </div>
-        <div className="flex items-center gap-2 mt-2 text-xs text-muted">
+        <div className="flex items-center gap-2 mt-2 text-xs text-muted score-chip-row">
           <span className="chip">{c ? c.clock : "—"} · {c ? c.phaseLabel : "idle"}</span>
-          {c?.suspended && <span className="chip text-crit border-crit/40">● SUSPENDED</span>}
+          {c?.suspended ? (
+            <span className="chip text-crit border-crit/40">● SUSPENDED</span>
+          ) : (
+            <span className="chip invisible pointer-events-none" aria-hidden>
+              ● SUSPENDED
+            </span>
+          )}
           <span className="chip tnum">tick {state.progress.tick}/{state.progress.total}</span>
           <span className="chip font-semibold">
             {state.provenance === "recorded_live" ? "RECORDED LIVE" : state.provenance.toUpperCase()}
           </span>
-          <span className="chip text-cyan">{state.executionMode === "shadow" ? "SHADOW EXECUTION" : "SIMULATED EXECUTION"}</span>
-          {!state.tradeReadiness.ready && (
-            <span className="chip text-warn" title={state.tradeReadiness.reasons.join("; ")}>STAND DOWN</span>
+          <span className="chip text-cyan">
+            {state.executionMode === "shadow" ? "SHADOW EXECUTION" : "SIMULATED EXECUTION"}
+          </span>
+          {!state.tradeReadiness.ready ? (
+            <span className="chip text-warn" title={state.tradeReadiness.reasons.join("; ")}>
+              STAND DOWN
+            </span>
+          ) : (
+            <span className="chip invisible pointer-events-none" aria-hidden>
+              STAND DOWN
+            </span>
           )}
-          {c?.anomaly && <span className="chip text-warn">inject: {c.anomaly}</span>}
+          {c?.anomaly ? (
+            <span className="chip text-warn">inject: {c.anomaly}</span>
+          ) : null}
         </div>
       </div>
       <div className="text-right">
@@ -273,61 +293,103 @@ export function SentinelFeed({ signals, counts }: { signals: Signal[]; counts: E
 
 // ── Arena ───────────────────────────────────────────────────────────────────────
 
-export function Arena({ agents, leader }: { agents: AgentView[]; leader: string | null }) {
+export function Arena({
+  agents,
+  leader,
+  onSelect,
+  selectedId,
+}: {
+  agents: AgentView[];
+  leader: string | null;
+  onSelect?: (id: string) => void;
+  selectedId?: string | null;
+}) {
   const ranked = [...agents].sort((a, b) => b.metrics.equity - a.metrics.equity);
   const naive = agents.find((a) => a.id === "momentum_naive");
   const guarded = agents.find((a) => a.id === "momentum_guarded");
   const edge = naive && guarded ? guarded.metrics.pnl - naive.metrics.pnl : null;
 
   return (
-    <div>
-      <table className="w-full text-sm">
+    <div className="arena-wrap">
+      <table className="arena-table text-sm">
         <thead>
           <tr className="text-faint text-[10px] uppercase tracking-wider">
-            <th className="text-left font-medium pb-2">Agent</th>
+            <th className="text-left font-medium pb-2 px-3 pt-2">Agent</th>
             <th className="text-right font-medium pb-2">PnL</th>
             <th className="text-right font-medium pb-2">ROI</th>
             <th className="text-center font-medium pb-2">Equity</th>
             <th className="text-right font-medium pb-2">Trades</th>
             <th className="text-right font-medium pb-2">Hit</th>
-            <th className="text-right font-medium pb-2">maxDD</th>
+            <th className="text-right font-medium pb-2 pr-3">maxDD</th>
           </tr>
         </thead>
         <tbody>
-          {ranked.map((a) => (
-            <tr key={a.id} className="border-t border-line/60 row-hover">
-              <td className="py-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full" style={{ background: AGENT_COLOR[a.id] }} />
-                  <span className="font-medium">{a.name}</span>
-                  {a.id === leader && <span className="chip text-brand text-[10px] py-0">▲ leader</span>}
-                  <span className="chip text-[10px] py-0">{a.mode}</span>
-                  {a.stoodDown && <span className="chip text-warn text-[10px] py-0">stand-down</span>}
-                </div>
-                <div className="text-[10px] text-faint mt-0.5 max-w-[260px] truncate">{a.lastRationale}</div>
-              </td>
-              <td className={`py-2 text-right tnum font-semibold ${pnlColor(a.metrics.pnl)}`}>{signFmt(a.metrics.pnl)}</td>
-              <td className={`py-2 text-right tnum ${pnlColor(a.metrics.roi)}`}>{signFmt(a.metrics.roi * 100, 1)}%</td>
-              <td className="py-2">
-                <div className="flex justify-center">
-                  <Sparkline values={a.curve} color={AGENT_COLOR[a.id]} />
-                </div>
-              </td>
-              <td className="py-2 text-right tnum text-muted">{a.metrics.trades}</td>
-              <td className="py-2 text-right tnum text-muted">{(a.metrics.hitRate * 100).toFixed(0)}%</td>
-              <td className="py-2 text-right tnum text-faint">{a.metrics.maxDrawdown.toFixed(1)}</td>
-            </tr>
-          ))}
+          {ranked.map((a) => {
+            const selected = selectedId === a.id;
+            return (
+              <tr
+                key={a.id}
+                className={`border-t border-line/60 row-hover ${selected ? "bg-panel/80" : ""} ${
+                  onSelect ? "cursor-pointer" : ""
+                }`}
+                onClick={() => onSelect?.(a.id)}
+              >
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: AGENT_COLOR[a.id] }} />
+                    <span className="font-medium truncate">{a.name}</span>
+                    <span className="arena-row-badges">
+                      {a.id === leader ? (
+                        <span className="chip text-brand text-[10px] py-0">▲ leader</span>
+                      ) : (
+                        <span className="chip text-[10px] py-0 invisible" aria-hidden>
+                          ▲ leader
+                        </span>
+                      )}
+                      <span className="chip text-[10px] py-0">{a.mode}</span>
+                      {a.stoodDown ? (
+                        <span className="chip text-warn text-[10px] py-0">stand-down</span>
+                      ) : (
+                        <span className="chip text-[10px] py-0 invisible" aria-hidden>
+                          stand-down
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-faint mt-0.5 truncate">{a.lastRationale || "—"}</div>
+                </td>
+                <td className={`py-2 text-right tnum font-semibold ${pnlColor(a.metrics.pnl)}`}>
+                  {signFmt(a.metrics.pnl)}
+                </td>
+                <td className={`py-2 text-right tnum ${pnlColor(a.metrics.roi)}`}>
+                  {signFmt(a.metrics.roi * 100, 1)}%
+                </td>
+                <td className="py-2">
+                  <div className="flex justify-center h-7 items-center">
+                    <Sparkline values={a.curve} color={AGENT_COLOR[a.id]} />
+                  </div>
+                </td>
+                <td className="py-2 text-right tnum text-muted">{a.metrics.trades}</td>
+                <td className="py-2 text-right tnum text-muted">{(a.metrics.hitRate * 100).toFixed(0)}%</td>
+                <td className="py-2 text-right tnum text-faint pr-3">{a.metrics.maxDrawdown.toFixed(1)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      {edge != null && (
-        <div className="mt-3 text-xs text-muted border-t border-line/60 pt-3">
-          <span className="text-faint">Sentinel value · </span>
-          Guarded Momentum is{" "}
-          <span className={pnlColor(edge)}>{signFmt(edge)} units</span>{" "}
-          {edge >= 0 ? "ahead of" : "behind"} Naive Momentum — same feed, same params, the difference is listening to the sentinel.
-        </div>
-      )}
+      <div className="arena-footer mt-3 text-xs text-muted border-t border-line/60 pt-3 px-3 pb-3">
+        {edge != null ? (
+          <>
+            <span className="text-faint">Sentinel value · </span>
+            Guarded Momentum is{" "}
+            <span className={pnlColor(edge)}>{signFmt(edge)} units</span>{" "}
+            {edge >= 0 ? "ahead of" : "behind"} Naive Momentum — same feed, same params, the difference is
+            listening to the sentinel.
+          </>
+        ) : (
+          <span className="text-faint">Sentinel A/B comparison appears once both momentum agents trade.</span>
+        )}
+      </div>
     </div>
   );
 }

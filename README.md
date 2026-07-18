@@ -1,8 +1,8 @@
 # Sweeper × N+1 Machine
 
-Sweeper is a Horizon-first TxLINE trading console. It continuously publishes a fixed ten-match-minute forecast for the next material soccer event while retaining Sentinel, five trading agents, shadow/paper execution, Merkle audit proofs, official mainnet settlement verification, and replay.
+Sweeper is an **autonomous multi-agent trading desk** on TxLINE. Six strategies share one feed; Sentinel gates toxic flow; Horizon + Tempo · Odds · Hybrid supply next-event edge; every decision is Merkle-auditable; portfolios race live in shadow/paper mode.
 
-Live means TxLINE mainnet level 12 only. Simulation and recorded-live replay are always labelled. Live execution is shadow-only (no real venue fills).
+**Hero surface:** Agent Arena + Causal rail (tick → signal → decision → fill). Shared signal charts and compact Horizon sit underneath. Live means TxLINE mainnet level 12 only. Simulation and recorded-live replay are always labelled. Live execution is shadow-only (no real venue fills).
 
 ## Production
 
@@ -10,9 +10,31 @@ Live means TxLINE mainnet level 12 only. Simulation and recorded-live replay are
 - **Railway (judge target):** https://sweeper-production-0ef9.up.railway.app
 - **Access deadline:** July 19, 2026 23:59 UTC
 
-## Shock Strip
+## Agent Arena
 
-Spatial memory under the Horizon Deck — three named strategies **Tempo · Odds · Hybrid**. Spec, ideation, and handoff:
+Roster (same tick, competing PnL):
+
+1. Value — consensus reference deviations  
+2. Naive Momentum — chases every large move  
+3. Guarded Momentum — Sentinel-confirmed sharp moves only (A/B vs naive)  
+4. Mean Reversion — fades outlier prints  
+5. Market Maker — quotes around reference  
+6. **Hybrid Thesis** — Horizon material call + Hybrid/path features when the book underprices it  
+7. **Collapse Fade** — path-aware fade after Horizon SURPRISE  
+
+Agents receive a **desk-v1 pricing model** (score-state Poisson ⊕ tempo/odds hybrid tilt ⊕ Horizon-mapped 1X2 tilt — never raw Horizon class P as 1X2 fair). Path features use last-obs-before lookbacks and time-normalized vol. Live tempo polls recompute the same feature store agents read. Portfolios mark to **observed** prices (not privileged sim reference).
+
+Session scorecard surfaces Sentinel edge (guarded − naive), path regime, Hybrid Thesis / Collapse Fade PnL, and warm-start tick counts.
+
+Eval across seeds:
+
+```bash
+npm run eval:agents
+```
+
+## Shared signals (Tempo · Odds · Hybrid)
+
+Minute-aligned charts are **inputs the desk trades on**, not decoration. Spec and handoff:
 
 - [`docs/shock-strip/README.md`](./docs/shock-strip/README.md)
 - [`docs/shock-strip/HANDOFF.md`](./docs/shock-strip/HANDOFF.md)
@@ -33,7 +55,7 @@ npm run dev
 
 Open `http://localhost:3000`. Public viewers need no key. Operators enter the shared key only for mutations.
 
-Deterministic demo:
+Deterministic demo (Arena + goal shock ~41′):
 
 ```text
 http://localhost:3000/?demo=act2

@@ -1,8 +1,10 @@
 import type { FeedHealth, RunProvenance, TradeReadiness } from "@/lib/engine/state";
 import type { MarketTick } from "@/lib/market/ticks";
+import { GamePhase } from "@/lib/txline/types";
 
 const MAX_AGE_MS = 90_000;
 const TRADEABLE_GAME_STATES = new Set(["H1", "H2", "ET1", "ET2", "PE"]);
+const BLOCKED_GAME_STATES = new Set(["C", "TXCC", "TXCS", "A"]);
 
 export function evaluateTradeReadiness(
   tick: MarketTick,
@@ -18,12 +20,23 @@ export function evaluateTradeReadiness(
   const scoreAgeMs = age(nowMs, tick.upstream?.scoreTsMs);
   const oddsAgeMs = age(nowMs, tick.upstream?.oddsTsMs);
   const lifecycle = tick.odds.lifecycle;
+  const scoreLifecycle = tick.score?.lifecycle;
+  const gameState = (lifecycle?.gameState ?? scoreLifecycle?.gameState ?? "").toUpperCase();
   const oneXTwo = tick.odds.markets.find((market) =>
     market.type === "match_result" && ["home", "draw", "away"].every((key) =>
       market.selections.some((selection) => selection.key === key && selection.impliedProb > 0),
     ),
   );
 
+  if (tick.phase === GamePhase.CoveragePaused) reasons.push("coverage paused");
+  if (tick.phase === GamePhase.Cancelled) reasons.push("fixture cancelled");
+  if (tick.phase === GamePhase.Abandoned) reasons.push("fixture abandoned");
+  if (BLOCKED_GAME_STATES.has(gameState)) {
+    reasons.push(`non-tradeable lifecycle ${gameState}`);
+  }
+  if (tick.score?.coverageSecondary === false) {
+    reasons.push("secondary coverage off");
+  }
   if (feed.status !== "live") reasons.push(`feed ${feed.status}`);
   if (!feed.scoreStreamAccepted) reasons.push("score stream not accepted");
   if (!feed.oddsStreamAccepted) reasons.push("odds stream not accepted");

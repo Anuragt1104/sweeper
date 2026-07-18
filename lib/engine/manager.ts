@@ -96,8 +96,11 @@ export class EngineManager {
       return this.startLive(engine);
     }
 
-    engine.step();
-    while (!engine.isFinished && opts.startMinute !== undefined && (engine.getState().current?.minute ?? 0) < opts.startMinute) {
+    if (opts.startMinute !== undefined) {
+      // Silent path warm-start from kickoff, then first trading ingest.
+      engine.warmFeaturesUntil(opts.startMinute);
+      if (!engine.isFinished) engine.step();
+    } else {
       engine.step();
     }
     this.notify();
@@ -358,13 +361,31 @@ export class EngineManager {
     engine.setFeedHealth(health);
 
     try {
-      const [scoreRecords, oddsRecords] = await Promise.all([
+      const [scoreRecords, oddsRecords, historicalScores] = await Promise.all([
         source.getScoreRecords(engine.fixture),
         source.getOddsRecords(engine.fixture),
+        source.getHistoricalScoreRecords(engine.fixture).catch(() => [] as Awaited<ReturnType<LiveSource["getHistoricalScoreRecords"]>>),
       ]);
       if (this.engine !== engine) return engine.getState();
       const assembler = new LiveTickAssembler(engine.fixture);
       const hydrationTick = assembler.hydrate(scoreRecords, oddsRecords);
+
+      // Seed path features from score history + frozen current odds (no fills).
+      if (historicalScores.length > 1) {
+        const { ticksFromHistoricalScores } = await import("@/lib/market/warm-ticks");
+        const warmTicks = ticksFromHistoricalScores(
+          engine.fixture,
+          historicalScores,
+          hydrationTick.odds,
+        );
+        const warmed = engine.warmFeaturesFromTicks(warmTicks);
+        if (warmed > 0) {
+          updateHealth({
+            detail: `Warmed ${warmed} path ticks from TxLINE score history; hydrating live streams`,
+          });
+        }
+      }
+
       const hydrated = await this.store.appendTick(engine.sessionId, hydrationTick, Date.now());
       if (hydrated) {
         engine.ingest(hydrationTick, hydrated.processedAtMs);

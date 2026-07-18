@@ -24,6 +24,10 @@ export enum GamePhase {
   Penalties = 8,
   Finished = 9,
   Abandoned = 10,
+  /** Fixture cancelled (TxLINE GameState C). */
+  Cancelled = 11,
+  /** Coverage cancelled or suspended — feed unreliable (TXCC / TXCS). */
+  CoveragePaused = 12,
 }
 
 export const PHASE_LABEL: Record<GamePhase, string> = {
@@ -38,6 +42,8 @@ export const PHASE_LABEL: Record<GamePhase, string> = {
   [GamePhase.Penalties]: "Penalties",
   [GamePhase.Finished]: "Finished",
   [GamePhase.Abandoned]: "Abandoned",
+  [GamePhase.Cancelled]: "Cancelled",
+  [GamePhase.CoveragePaused]: "Coverage paused",
 };
 
 /** Whether the ball is in play for the given phase. */
@@ -118,6 +124,10 @@ export interface ScoreSnapshot {
   yellow: StatPair;
   red: StatPair;
   corners: StatPair;
+  /** Humanized live status (e.g. "Coverage suspended", "Interruption"), if any. */
+  statusNote?: string;
+  /** True when TxLINE is emitting secondary (shots/danger) coverage. */
+  coverageSecondary?: boolean;
   /** Original lifecycle fields required for authoritative settlement. */
   lifecycle?: {
     action: string;

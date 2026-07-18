@@ -13,6 +13,7 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
     "agent": "tsx lib/runner/cli.ts",
+    "eval:agents": "tsx scripts/eval-agents.ts",
     "demo": "tsx scripts/demo.ts",
     "horizon:train": "tsx scripts/horizon-train.ts",
     "horizon:bootstrap": "tsx scripts/horizon-bootstrap.ts",

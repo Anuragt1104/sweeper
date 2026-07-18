@@ -98,6 +98,18 @@ test("sim ticks feed Tempo · Odds · Hybrid without Horizon coupling", () => {
       lastCollapse: hz.lastCollapse,
       horizon: hz.current,
     });
+    // Engine commits desk-model Hybrid after ingest (fair home, not Horizon class P).
+    const home = tick.odds.markets
+      .find((m) => m.type === "match_result")
+      ?.selections.find((s) => s.key === "home")?.impliedProb ?? 0.4;
+    strip.setHybridPoint({
+      minute: tick.minute,
+      fairHome: home,
+      tempoIntensity: 0.3,
+      oddsVelocity: 0.1,
+      pressure: 0.35,
+      thesis: hz.current?.thesis ?? null,
+    });
   }
 
   const state = strip.getState();
@@ -116,6 +128,14 @@ test("sim ticks feed Tempo · Odds · Hybrid without Horizon coupling", () => {
   assert.ok(state.hybrid.series.length > 5);
   assert.ok(state.hybrid.series.every((p) => p.thesisProb >= 0 && p.thesisProb <= 1));
   assert.ok(state.hybrid.series.every((p) => p.pressure >= 0 && p.pressure <= 1));
+
+  assert.ok(state.strategies.next_score.available);
+  assert.ok(state.strategies.match_1x2.available);
+  assert.ok(state.strategies.next_score.series.length > 5);
+  const ns = state.strategies.next_score.series.at(-1)!;
+  const mx = state.strategies.match_1x2.series.at(-1)!;
+  assert.equal(ns.minute, mx.minute);
+  assert.ok(Math.abs(ns.oddsProb - mx.oddsProb) > 0.01 || Math.abs(ns.hybridProb - mx.hybridProb) > 0.01);
 });
 
 test("missing odds market stays unavailable and is never invented", () => {
@@ -192,6 +212,14 @@ test("hybrid records collapse markers from Horizon side-input only", () => {
       source: "txline-historical",
       provenance: "test",
     },
+  });
+  strip.setHybridPoint({
+    minute: tick.minute,
+    fairHome: 0.42,
+    tempoIntensity: 0.3,
+    oddsVelocity: 0.1,
+    pressure: 0.4,
+    thesis: "goal_home",
   });
   const state = strip.getState();
   assert.equal(state.hybrid.markers.length, 1);

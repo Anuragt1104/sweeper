@@ -13,6 +13,32 @@ import type { HorizonState } from "@/lib/horizon/machine";
 import type { ShockStripState } from "@/lib/tempo/types";
 import type { PricingProvenance } from "@/lib/pricing/types";
 export type { PricingProvenance } from "@/lib/pricing/types";
+import type { SessionScorecard } from "@/lib/agents/session-scorecard";
+import type { RegimeKind } from "@/lib/agents/regime";
+import type { DeskModelSnapshot } from "@/lib/desk/contract-deck";
+import type { MatchIntensity } from "@/lib/desk/match-intensity";
+
+/** Serializable desk path snapshot for Arena UI (judges see the time series). */
+export interface DeskPathView {
+  windowMinutes: number;
+  homeRet1: number | null;
+  homeRet5: number | null;
+  homeRet10: number | null;
+  hybridSlope5: number | null;
+  tempoAccel3: number | null;
+  pressureDelta5: number | null;
+  homePathVol: number | null;
+  minutesSinceCollapse: number | null;
+  lastCollapseWinner: string | null;
+  lastCollapseSurprise: boolean;
+  tempoOddsDivergence: boolean;
+  regime: RegimeKind;
+  /** Sparklines for UI (newest last). */
+  homeProbSeries: number[];
+  hybridSeries: number[];
+  tempoSeries: number[];
+  warmedTicks: number;
+}
 
 export const PUBLIC_SCHEMA_VERSION = 2 as const;
 export type RunProvenance = "live" | "recorded_live" | "simulation";
@@ -132,6 +158,14 @@ export interface AgentView {
   lastRationale: string;
   stoodDown: boolean;
   curve: number[];
+  lastDecisionKind: "trade" | "stand_down" | "quote" | "hold" | null;
+  lastSignalIds: string[];
+  drivingInputs: {
+    horizonThesis?: string | null;
+    hybridProb?: number | null;
+    sentinelKind?: string | null;
+    tempoIntensity?: number | null;
+  } | null;
 }
 
 export interface LedgerView {
@@ -193,6 +227,14 @@ export interface EngineState {
   signalCounts: Record<SignalKind, number>;
   agents: AgentView[];
   leader: string | null;
+  /** Arena hero summary — Sentinel edge, Hybrid Thesis, Horizon hits. */
+  scorecard: SessionScorecard;
+  /** Rolling path features the desk trades on (time series, not just live scalars). */
+  deskPath: DeskPathView | null;
+  /** Desk pricing model snapshot (fair 1X2 agents trade against). */
+  deskModel: DeskModelSnapshot | null;
+  /** Shared match-intensity signals (flurry / cards / comeback) — not bet-scoped. */
+  matchIntensity: MatchIntensity | null;
   ledger: { size: number; root: string; recent: LedgerView[]; anchor: AnchorInfo | null };
   settlement: SettlementReceipt | null;
   feedHealth: FeedHealth;

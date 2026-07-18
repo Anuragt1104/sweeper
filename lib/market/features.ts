@@ -59,7 +59,8 @@ export class FeatureTracker {
       for (const s of m.selections) {
         const id = selId(m.type, s.key);
         const prev = this.state.get(id);
-        const f = this.step(id, m.type, s.key, s.impliedProb, s.price, tick.tsMs, prev);
+        const tickRef = lookupTickReference(tick, m.type, s.key);
+        const f = this.step(id, m.type, s.key, s.impliedProb, s.price, tick.tsMs, prev, tickRef);
         out.set(id, f);
       }
     }
@@ -81,6 +82,7 @@ export class FeatureTracker {
     price: number,
     tsMs: number,
     prev: SelState | undefined,
+    tickReference: number | null,
   ): SelectionFeatures {
     if (!prev) {
       const st: SelState = {
@@ -90,7 +92,7 @@ export class FeatureTracker {
         emaVar: this.th.volFloor * this.th.volFloor,
         ret: 0,
         z: 0,
-        reference: prob,
+        reference: tickReference ?? prob,
         samples: 1,
       };
       this.state.set(id, st);
@@ -107,8 +109,11 @@ export class FeatureTracker {
     const z = ret / priorVol;
     const emaVar = a * ret * ret + (1 - a) * prev.emaVar;
     const vol = Math.max(this.th.volFloor, Math.sqrt(emaVar));
-    // slow robust reference (resists single bad prints): heavier weight on history
-    const reference = 0.12 * prob + 0.88 * prev.reference;
+    // Prefer published tick.reference (TxLINE consensus / pricing model) when
+    // present so outlier detection uses the same fair agents/docs claim.
+    // Otherwise fall back to a slow EWMA of observed (live warm-up / sparse).
+    const ewmaRef = 0.12 * prob + 0.88 * prev.reference;
+    const reference = tickReference ?? ewmaRef;
 
     const st: SelState = {
       prob,
@@ -158,6 +163,19 @@ function view(id: string, marketType: string, key: string, st: SelState, msSince
 function splitId(id: string): { marketType: string; key: string } {
   const i = id.indexOf(":");
   return { marketType: id.slice(0, i), key: id.slice(i + 1) };
+}
+
+function lookupTickReference(
+  tick: MarketTick,
+  marketType: string,
+  key: string,
+): number | null {
+  for (const m of tick.reference.markets) {
+    if (m.type !== marketType) continue;
+    const s = m.selections.find((x) => x.key === key);
+    if (s && Number.isFinite(s.impliedProb)) return s.impliedProb;
+  }
+  return null;
 }
 
 function clampPos(x: number): number {

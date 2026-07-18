@@ -13,21 +13,25 @@ import {
 } from "@/lib/tempo/severity";
 import { diffTempo } from "@/lib/tempo/diff";
 import {
-  blendPressure,
-  HYBRID_BLEND,
-  oddsVelocityFromDelta,
-  tempoIntensityFromSeverities,
-} from "@/lib/tempo/hybrid";
-import {
   extractOddsViews,
   mergeViewPoint,
   shortTermFavorite,
   type ShortTermFavorite,
 } from "@/lib/tempo/odds-views";
+import {
+  emptyStrategyLenses,
+  lensHybridProb,
+  lensTempoIntensity,
+  LENS_BLURB,
+  oddsPrimaryProb,
+  oddsVelocityFromHistory,
+  upsertLensPoint,
+} from "@/lib/tempo/lenses";
 import type {
   OddsViewId,
   ShockSpike,
   ShockStripState,
+  StrategyLensSeries,
   TempoCounts,
   TempoMarkerKind,
   TempoSnapshot,
@@ -59,6 +63,14 @@ export class ShockStripAssembler {
   private availableViews: OddsViewId[] = [];
   private hybridSeries: ShockStripState["hybrid"]["series"] = [];
   private hybridMarkers: ShockSpike[] = [];
+  private strategies: Record<OddsViewId, StrategyLensSeries> = emptyStrategyLenses();
+  private oddsProbHistory: Record<OddsViewId, { minute: number; prob: number }[]> = {
+    next_score: [],
+    ou_25: [],
+    match_1x2: [],
+    corners_ou: [],
+    swing: [],
+  };
   private lastOddsSwingActive = false;
   private lastCollapseId: string | null = null;
   private favoriteHistory: { minute: number; prob: number }[] = [];
@@ -107,13 +119,44 @@ export class ShockStripAssembler {
       });
     }
 
-    this.recordHybrid(tick.minute, opts?.horizon ?? null);
-
+    // Hybrid is committed by the engine after composeDeskModel (not Horizon class P).
     this.pushScoreSeries(tick);
 
     if (tick.tempo) this.applyTempo(tick.tempo);
 
     this.boundHistory();
+  }
+
+  /**
+   * Commit desk-model Hybrid sample. `thesisProb` field stores desk fair home
+   * (legacy series key kept for UI compatibility).
+   */
+  setHybridPoint(point: {
+    minute: number;
+    fairHome: number;
+    tempoIntensity: number;
+    oddsVelocity: number;
+    pressure: number;
+    thesis: string | null;
+  }): void {
+    const row = {
+      minute: point.minute,
+      thesisProb: point.fairHome,
+      tempoIntensity: point.tempoIntensity,
+      oddsVelocity: point.oddsVelocity,
+      pressure: point.pressure,
+      thesis: point.thesis,
+    };
+    const last = this.hybridSeries[this.hybridSeries.length - 1];
+    if (last && last.minute === point.minute) this.hybridSeries[this.hybridSeries.length - 1] = row;
+    else this.hybridSeries.push(row);
+    this.recordStrategyLenses(point.minute, point.fairHome);
+  }
+
+  /** Marker severities in the last `windowMinutes` for desk hybrid intensity. */
+  recentMarkerSeverities(minute: number, windowMinutes: number): number[] {
+    const start = minute - windowMinutes;
+    return this.tempoMarkers.filter((m) => m.minute >= start && m.minute <= minute).map((m) => m.severity);
   }
 
   applyTempo(snapshot: TempoSnapshot): void {
@@ -122,7 +165,9 @@ export class ShockStripAssembler {
     this.detail =
       snapshot.source === "sim"
         ? "Simulated tempo enrichment (shots, fouls, attacks…)"
-        : "API-Football tempo enrichment (non-settlement)";
+        : snapshot.source === "recorded"
+          ? "Recorded match tempo (minute-aligned enrichment)"
+          : "API-Football tempo enrichment (non-settlement)";
 
     const events = diffTempo(this.lastTempoCounts, snapshot);
     this.lastTempoCounts = snapshot.counts;
@@ -147,7 +192,12 @@ export class ShockStripAssembler {
         kind: event.kind,
         label: event.label,
         side: event.side,
-        source: event.source === "sim" ? "sim" : "api-football",
+        source:
+          event.source === "sim"
+            ? "sim"
+            : event.source === "recorded"
+              ? "recorded"
+              : "api-football",
       });
     }
 
@@ -183,6 +233,7 @@ export class ShockStripAssembler {
         series: [...this.hybridSeries],
         markers: [...this.hybridMarkers],
       },
+      strategies: structuredClone(this.strategies),
     };
   }
 
@@ -218,34 +269,40 @@ export class ShockStripAssembler {
     this.availableViews = ODDS_VIEW_ORDER.filter((id) => this.oddsViews[id].available);
   }
 
-  private recordHybrid(minute: number, horizon: HorizonPublication | null): void {
-    const thesis = horizon?.thesis ?? null;
-    const thesisProb = horizon && thesis ? horizon.probabilities[thesis] ?? 0 : 0;
+  /** Per-bet Tempo · Odds · Hybrid samples — hybridProb blends odds with desk fair home. */
+  private recordStrategyLenses(minute: number, deskFairHome: number): void {
+    for (const id of ODDS_VIEW_ORDER) {
+      const view = this.oddsViews[id];
+      const available = view.available && view.points.length > 0;
+      this.strategies[id].available = available;
+      this.strategies[id].blurb = LENS_BLURB[id];
+      if (!available) continue;
 
-    const windowStart = minute - HYBRID_BLEND.tempoWindowMinutes;
-    const recent = this.tempoMarkers.filter((m) => m.minute >= windowStart && m.minute <= minute);
-    const tempoIntensity = tempoIntensityFromSeverities(recent.map((m) => m.severity));
+      const lastOdds = view.points[view.points.length - 1];
+      const { prob: oddsProb, label } = oddsPrimaryProb(lastOdds, id);
+      const hist = this.oddsProbHistory[id];
+      const lastHist = hist[hist.length - 1];
+      if (!lastHist || lastHist.minute !== minute) hist.push({ minute, prob: oddsProb });
+      else hist[hist.length - 1] = { minute, prob: oddsProb };
 
-    const fav = this.lastFavorite;
-    const oddsWindowStart = minute - HYBRID_BLEND.oddsWindowMinutes;
-    const prior = [...this.favoriteHistory].reverse().find((p) => p.minute <= oddsWindowStart);
-    const delta = fav && prior ? fav.prob - prior.prob : 0;
-    const oddsVelocity = oddsVelocityFromDelta(delta);
-    const pressure = blendPressure(tempoIntensity, oddsVelocity);
+      const tempoIntensity = lensTempoIntensity(id, minute, this.tempoMarkers, this.series);
+      const oddsVelocity = oddsVelocityFromHistory(hist, minute, oddsProb);
+      const { hybridProb, pressure } = lensHybridProb({
+        viewId: id,
+        oddsProb,
+        tempoIntensity,
+        oddsVelocity,
+        horizonThesisProb: deskFairHome,
+      });
 
-    const last = this.hybridSeries[this.hybridSeries.length - 1];
-    const point = {
-      minute,
-      thesisProb,
-      tempoIntensity,
-      oddsVelocity,
-      pressure,
-      thesis,
-    };
-    if (last && last.minute === minute) {
-      this.hybridSeries[this.hybridSeries.length - 1] = point;
-    } else {
-      this.hybridSeries.push(point);
+      upsertLensPoint(this.strategies[id], {
+        minute,
+        tempoIntensity,
+        oddsProb,
+        hybridProb,
+        pressure,
+        label,
+      });
     }
   }
 
@@ -311,6 +368,12 @@ export class ShockStripAssembler {
     for (const id of ODDS_VIEW_ORDER) {
       if (this.oddsViews[id].points.length > 200) {
         this.oddsViews[id].points = this.oddsViews[id].points.slice(-200);
+      }
+      if (this.oddsProbHistory[id].length > 200) {
+        this.oddsProbHistory[id] = this.oddsProbHistory[id].slice(-200);
+      }
+      if (this.strategies[id].series.length > 200) {
+        this.strategies[id].series = this.strategies[id].series.slice(-200);
       }
     }
   }

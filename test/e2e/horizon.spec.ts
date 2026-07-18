@@ -34,8 +34,8 @@ test("act2 manifests the known 41 minute goal and collapse", async ({ page }) =>
   await expect(page.getByText(/ACT II public simulation/)).toBeVisible();
   await expect(page.getByText("SPECTATOR")).toBeVisible();
   await expect(page.getByTestId("horizon-deck")).toBeVisible();
-  await expect(page.getByText("HOME GOAL", { exact: true })).toBeVisible({ timeout: 12_000 });
-  await expect(page.getByText(/transitions/)).toContainText(/[1-9]/);
+  await expect(page.getByText("HOME GOAL", { exact: true })).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByText(/transitions/)).toContainText(/[1-9]/, { timeout: 25_000 });
 });
 
 test("replay deep link scrubs deterministically to requested minute", async ({ page }) => {

@@ -15,14 +15,17 @@
  * (driven by a server timer), the headless CLI runner, and replay (stepped as
  * fast as possible). Determinism comes from (fixtureId, config.seed).
  */
-import { GamePhase, PHASE_LABEL, type Fixture, type OddsMarketType } from "@/lib/txline/types";
+import { GamePhase, PHASE_LABEL, type Fixture, type MatchEvent, type OddsMarketType } from "@/lib/txline/types";
 import { fmtClock, priceMovement } from "@/lib/util/format";
 import { uid } from "@/lib/util/id";
-import { MarketTickGenerator, type MarketTick, type ScenarioEvent } from "@/lib/market/ticks";
+import { MarketTickGenerator, type MarketTick, type ScenarioEvent, type TempoProvider } from "@/lib/market/ticks";
 import { Sentinel } from "@/lib/sentinel/sentinel";
 import type { SelectionFeatures } from "@/lib/market/features";
 import { buildAgents } from "@/lib/agents/registry";
-import type { Agent, Decision } from "@/lib/agents/types";
+import type { Agent, Decision, DeskSignals } from "@/lib/agents/types";
+import { buildSessionScorecard } from "@/lib/agents/session-scorecard";
+import { DeskFeatureStore, type DeskPathFeatures } from "@/lib/agents/desk-features";
+import { classifyRegime } from "@/lib/agents/regime";
 import { SimulatedPaperExchange } from "@/lib/execution/paper";
 import { LiveShadowExchange } from "@/lib/execution/live-shadow";
 import type { ExecutionAdapter } from "@/lib/execution/types";
@@ -39,6 +42,7 @@ import {
   sampleCurve,
   type AgentView,
   type AnchorInfo,
+  type DeskPathView,
   type EngineState,
   type LedgerView,
   type MarketView,
@@ -57,6 +61,11 @@ import { ShockStripAssembler } from "@/lib/tempo/strip";
 import type { TempoSnapshot } from "@/lib/tempo/types";
 import { evaluateTradeReadiness } from "@/lib/readiness/trade-readiness";
 import type { SettlementVerification } from "@/lib/proof/txline-settlement-verifier";
+import { composeDeskModel, type DeskModelView } from "@/lib/desk/compose";
+import { DESK_WEIGHTS } from "@/lib/desk/weights";
+import { emptyDeskModel } from "@/lib/desk/empty";
+import { snapshotDeskModel } from "@/lib/desk/contract-deck";
+import { computeMatchIntensity, emptyMatchIntensity, type MatchIntensity } from "@/lib/desk/match-intensity";
 
 export class SweeperEngine {
   readonly sessionId: string;
@@ -72,6 +81,12 @@ export class SweeperEngine {
   private ledger = new AuditLedger();
   private horizon: HorizonMachine;
   private shockStrip = new ShockStripAssembler();
+  private deskFeatures = new DeskFeatureStore();
+  private lastPath: DeskPathFeatures | null = null;
+  private lastModel: DeskModelView = emptyDeskModel();
+  private lastIntensity: MatchIntensity = emptyMatchIntensity();
+  private eventTape: MatchEvent[] = [];
+  private warmedTicks = 0;
 
   private cursor = 0;
   private status: EngineState["status"] = "idle";
@@ -100,12 +115,13 @@ export class SweeperEngine {
     scenario: ScenarioEvent[] = [],
     horizonArtifact?: FrequencyArtifact,
     sessionId?: string,
+    tempoProvider?: TempoProvider,
   ) {
     this.fixture = fixture;
     this.config = config;
     this.mode = mode;
     this.sessionId = sessionId ?? uid("swpr");
-    this.gen = new MarketTickGenerator(fixture, config, scenario);
+    this.gen = new MarketTickGenerator(fixture, config, scenario, tempoProvider);
     this.sentinel = new Sentinel(fixture.id, config);
     this.agents = buildAgents();
     this.exchange = mode === "simulation"
@@ -146,12 +162,15 @@ export class SweeperEngine {
     this.feedHealth = { ...next };
   }
 
-  /** Live tempo enrichment (API-Football). Does not touch Horizon. */
+  /** Live tempo enrichment — recomputes desk model + path features agents read. */
   applyTempo(snapshot: TempoSnapshot): void {
     this.shockStrip.applyTempo({
       ...snapshot,
       minute: snapshot.minute || this.currentTick?.minute || 0,
     });
+    if (this.currentTick) {
+      this.refreshDeskFromStrip(this.currentTick);
+    }
     this.updatedAtMs = Date.now();
   }
 
@@ -167,14 +186,68 @@ export class SweeperEngine {
     this.supervisorStatus = { ...next };
   }
 
-  /** Mark every portfolio to the explicit reference price for the tick. */
+  /** Mark every portfolio to *observed* prices — never privileged sim reference. */
   private markAll(tick: MarketTick) {
-    for (const m of tick.reference.markets) {
+    for (const m of tick.odds.markets) {
       for (const s of m.selections) {
         const id = selId(m.type, s.key);
         for (const book of this.books.values()) book.mark(id, s.impliedProb);
       }
     }
+  }
+
+  /**
+   * After Shock Strip ingest (and any tempo apply), compose our desk model and
+   * push Hybrid + path features agents trade on.
+   */
+  private refreshDeskFromStrip(tick: MarketTick): DeskSignals {
+    const horizonState = this.horizon.getState();
+    const homePrior = this.deskFeatures.homeProbPrior(DESK_WEIGHTS.oddsVelocityMinutes);
+    const markers = this.shockStrip.recentMarkerSeverities(
+      tick.minute,
+      DESK_WEIGHTS.tempoWindowMinutes,
+    );
+    const stripPeek = this.shockStrip.getState();
+    const model = composeDeskModel({
+      tick,
+      horizon: horizonState.current,
+      tempo: stripPeek.tempo.latest,
+      homeProbPrior: homePrior,
+      markerSeverities: markers,
+      includeHorizonMap: true,
+    });
+    this.lastModel = model;
+    this.shockStrip.setHybridPoint({
+      minute: tick.minute,
+      fairHome: model.fairHome,
+      tempoIntensity: model.hybrid.tempoIntensity,
+      oddsVelocity: Math.abs(model.hybrid.signedOddsVelocityHome),
+      pressure: model.hybrid.pressure,
+      thesis: horizonState.current?.thesis ?? null,
+    });
+    const stripState = this.shockStrip.getState();
+    const path = this.deskFeatures.update(
+      tick,
+      stripState,
+      horizonState.current,
+      horizonState.lastCollapse,
+      {
+        fairHome: model.fairHome,
+        pressure: model.hybrid.pressure,
+        tempoIntensity: model.hybrid.tempoIntensity,
+        oddsVelocity: Math.abs(model.hybrid.signedOddsVelocityHome),
+      },
+    );
+    this.lastPath = path;
+    return {
+      horizon: horizonState.current,
+      hybridThesisProb: model.fairHome,
+      pressure: model.hybrid.pressure,
+      tempoIntensity: model.hybrid.tempoIntensity,
+      lastCollapse: horizonState.lastCollapse,
+      path,
+      model,
+    };
   }
 
   /** Advance one tick. Returns true while more ticks remain. */
@@ -197,6 +270,10 @@ export class SweeperEngine {
     this.currentTick = tick;
     this.tradeReadiness = evaluateTradeReadiness(tick, this.feedHealth, this.mode, processedAtMs);
     this.markAll(tick);
+    if (tick.events.length) this.eventTape.push(...tick.events);
+    // Cap tape so late-match frames stay bounded.
+    if (this.eventTape.length > 400) this.eventTape = this.eventTape.slice(-400);
+    this.lastIntensity = computeMatchIntensity(tick.score, this.eventTape);
 
     // 1. record the data we ingested → hash links every downstream decision
     const tickHash = this.ledger.append(
@@ -210,12 +287,13 @@ export class SweeperEngine {
     // Horizon records are bound to the same triggering tick hash as trading.
     this.horizon.processTick(tick, { tickHash, processedAtMs });
     const horizonState = this.horizon.getState();
-    // Shock strip is UI-only; never feeds Horizon settlement.
+    // Shock strip ingest applies tick tempo first; desk model commits Hybrid after.
     this.shockStrip.ingestTick(tick, {
       oddsSwing: horizonState.oddsSwing,
       lastCollapse: horizonState.lastCollapse,
       horizon: horizonState.current,
     });
+    const desk = this.refreshDeskFromStrip(tick);
 
     // 2. sentinel
     const { assessment, features } = this.sentinel.process(tick);
@@ -238,6 +316,7 @@ export class SweeperEngine {
         book,
         cfg: this.config,
         readiness: this.tradeReadiness,
+        desk,
       });
       decision.reactedToHash = tickHash;
       this.lastDecision.set(agent.id, decision);
@@ -251,6 +330,8 @@ export class SweeperEngine {
           agentId: agent.id,
           rationale: decision.rationale,
           stoodDown: decision.stoodDown ?? false,
+          kind: decision.kind ?? null,
+          drivingInputs: decision.drivingInputs ?? null,
           orders: decision.orders,
           quotes: decision.quotes,
         },
@@ -288,6 +369,44 @@ export class SweeperEngine {
       return false;
     }
     return true;
+  }
+
+  /**
+   * Silent warm-start: advance Horizon + Shock Strip + DeskFeatureStore without
+   * ledger / Sentinel / agent fills. Used to seed path features from historical
+   * or simulated ticks before trading begins.
+   */
+  warmFeaturesFromTicks(ticks: MarketTick[]): number {
+    let n = 0;
+    for (const tick of ticks) {
+      this.horizon.processTick(tick, { processedAtMs: tick.tsMs });
+      const horizonState = this.horizon.getState();
+      this.shockStrip.ingestTick(tick, {
+        oddsSwing: horizonState.oddsSwing,
+        lastCollapse: horizonState.lastCollapse,
+        horizon: horizonState.current,
+      });
+      this.refreshDeskFromStrip(tick);
+      n += 1;
+    }
+    this.warmedTicks += n;
+    return n;
+  }
+
+  /**
+   * Simulation warm-start: pull ticks from the generator up to (but not including)
+   * `untilMinute`, seed path features, and leave the trading cursor ready so the
+   * next `step()` continues from that minute.
+   */
+  warmFeaturesUntil(untilMinute: number): number {
+    const ticks: MarketTick[] = [];
+    while (this.cursor < this.totalTicks) {
+      const tick = this.gen.at(this.cursor);
+      if (tick.minute >= untilMinute) break;
+      ticks.push(tick);
+      this.cursor += 1;
+    }
+    return this.warmFeaturesFromTicks(ticks);
   }
 
   /** Run every remaining tick (replay / CLI). */
@@ -410,6 +529,17 @@ export class SweeperEngine {
     const agents: AgentView[] = this.agents.map((a) => {
       const book = this.books.get(a.id)!;
       const last = this.lastDecision.get(a.id);
+      const kind =
+        last?.kind ??
+        (last?.stoodDown
+          ? "stand_down"
+          : last?.orders.length
+            ? "trade"
+            : last?.quotes.length
+              ? "quote"
+              : last
+                ? "hold"
+                : null);
       return {
         id: a.id,
         name: a.name,
@@ -427,12 +557,30 @@ export class SweeperEngine {
         })),
         lastRationale: last?.rationale ?? "—",
         stoodDown: last?.stoodDown ?? false,
-        curve: sampleCurve(book.curve.map((c) => c.equity)),
+        // Denser curve for the desk hero sparklines (~120 pts).
+        curve: sampleCurve(
+          book.curve.map((c) => c.equity),
+          120,
+        ),
+        lastDecisionKind: kind,
+        lastSignalIds: last?.signalIds ?? [],
+        drivingInputs: last?.drivingInputs ?? null,
       };
     });
     const leader = agents.length
       ? agents.reduce((best, a) => (a.metrics.equity > best.metrics.equity ? a : best)).id
       : null;
+    const scorecard = buildSessionScorecard(
+      agents,
+      this.horizon.getState(),
+      leader,
+      this.lastPath,
+      this.config,
+      this.warmedTicks,
+    );
+    const deskPath = this.toDeskPathView(this.lastPath);
+    const deskModel = snapshotDeskModel(this.lastModel);
+    const matchIntensity = this.lastIntensity;
 
     const ledgerRecent: LedgerView[] = this.ledger.recent(40).map((r) => ({
       seq: r.seq,
@@ -463,10 +611,11 @@ export class SweeperEngine {
       },
       config: this.config,
       progress: {
-        tick: this.cursor,
+        // Expose the last ingested seq (not the next cursor) so chips match current.seq.
+        tick: tick?.seq ?? 0,
         total: this.totalTicks,
-        minute: tick ? Math.round(tick.minute) : 0,
-        pct: Math.round((this.cursor / this.totalTicks) * 100),
+        minute: tick ? round2(tick.minute) : 0,
+        pct: Math.round(((tick ? tick.seq + 1 : 0) / this.totalTicks) * 100),
       },
       current: tick ? this.tickView(tick) : null,
       quality: Math.round(this.sentinel.currentQuality()),
@@ -474,6 +623,10 @@ export class SweeperEngine {
       signalCounts: this.signalCounts,
       agents,
       leader,
+      scorecard,
+      deskPath,
+      deskModel,
+      matchIntensity,
       ledger: {
         size: this.ledger.size(),
         root: this.ledger.root(),
@@ -519,7 +672,7 @@ export class SweeperEngine {
 
     return {
       seq: tick.seq,
-      minute: Math.round(tick.minute),
+      minute: round2(tick.minute),
       phase: tick.phase,
       phaseLabel: PHASE_LABEL[tick.phase],
       clock: fmtClock(tick.minute, tick.phase),
@@ -550,6 +703,30 @@ export class SweeperEngine {
   }
   private staleSet(): Set<string> {
     return new Set(this.lastAssessmentStale);
+  }
+
+  private toDeskPathView(path: DeskPathFeatures | null): DeskPathView | null {
+    if (!path) return null;
+    const tail = path.series.slice(-48);
+    return {
+      windowMinutes: round2(path.windowMinutes),
+      homeRet1: path.homeRet1 != null ? round4(path.homeRet1) : null,
+      homeRet5: path.homeRet5 != null ? round4(path.homeRet5) : null,
+      homeRet10: path.homeRet10 != null ? round4(path.homeRet10) : null,
+      hybridSlope5: path.hybridSlope5 != null ? round4(path.hybridSlope5) : null,
+      tempoAccel3: path.tempoAccel3 != null ? round4(path.tempoAccel3) : null,
+      pressureDelta5: path.pressureDelta5 != null ? round4(path.pressureDelta5) : null,
+      homePathVol: path.homePathVol != null ? round4(path.homePathVol) : null,
+      minutesSinceCollapse: path.minutesSinceCollapse != null ? round2(path.minutesSinceCollapse) : null,
+      lastCollapseWinner: path.lastCollapseWinner,
+      lastCollapseSurprise: path.lastCollapseSurprise,
+      tempoOddsDivergence: path.tempoOddsDivergence,
+      regime: classifyRegime(path, this.config),
+      homeProbSeries: tail.map((p) => (p.homeProb != null ? round3(p.homeProb) : 0)),
+      hybridSeries: tail.map((p) => round3(p.hybridThesisProb)),
+      tempoSeries: tail.map((p) => round3(p.tempoIntensity)),
+      warmedTicks: this.warmedTicks,
+    };
   }
 }
 

@@ -98,6 +98,20 @@ test("game_finalised and every documented soccer phase normalize without a malfo
   assert.equal(final.finalised, true);
 });
 
+test("cancel and coverage codes map to Cancelled / CoveragePaused with status notes", () => {
+  const cancelled = normalizeScoreRecord({ ...scoreRaw(1, 0, 0, 0, 0), gameState: "C" }, fixture);
+  assert.equal(cancelled.snapshot.phase, GamePhase.Cancelled);
+  assert.equal(cancelled.snapshot.statusNote, "Cancelled");
+
+  const paused = normalizeScoreRecord(
+    { ...scoreRaw(2, 0, 0, 0, 0), gameState: "TXCS", coverageSecondaryData: false },
+    fixture,
+  );
+  assert.equal(paused.snapshot.phase, GamePhase.CoveragePaused);
+  assert.equal(paused.snapshot.statusNote, "Coverage suspended");
+  assert.equal(paused.snapshot.coverageSecondary, false);
+});
+
 test("odds parser retains returned markets dynamically and detects a usable reversed 1X2", () => {
   const odds = normalizeOddsRecords([
     {

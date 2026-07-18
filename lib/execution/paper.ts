@@ -18,6 +18,8 @@ import type { EngineConfig } from "@/lib/engine/config";
 import { hashStringToSeed, makeRng } from "@/lib/util/rng";
 import type { TradeReadiness } from "@/lib/engine/state";
 import type { ExecutionAdapter } from "@/lib/execution/types";
+import { obsProb } from "@/lib/agents/util";
+import { parseSelId } from "@/lib/market/ids";
 
 export class SimulatedPaperExchange implements ExecutionAdapter {
   private cfg: EngineConfig;
@@ -57,7 +59,8 @@ export class SimulatedPaperExchange implements ExecutionAdapter {
     if (!readiness.ready || tick.suspended) return [];
     const fills: Fill[] = [];
     for (const q of quotes) {
-      const fair = referenceProbFor(tick, q.selId);
+      // Honest mid: observed book — never privileged simulation reference.
+      const fair = observedProbFor(tick, q.selId);
       if (fair == null) continue;
       const r = makeRng(hashStringToSeed(`${tick.fixtureId}:${tick.seq}:${q.selId}:flow`));
       const flowSize = Math.min(q.size, 6 + r.int(0, 14));
@@ -102,13 +105,9 @@ export class SimulatedPaperExchange implements ExecutionAdapter {
   }
 }
 
-function referenceProbFor(tick: MarketTick, selId: string): number | null {
-  for (const m of tick.reference.markets) {
-    for (const s of m.selections) {
-      if (`${m.type}:${s.key}` === selId) return s.impliedProb;
-    }
-  }
-  return null;
+function observedProbFor(tick: MarketTick, id: string): number | null {
+  const { marketType, key } = parseSelId(id);
+  return obsProb(tick, marketType, key) ?? null;
 }
 
 function simulatedReady(tick: MarketTick): TradeReadiness {

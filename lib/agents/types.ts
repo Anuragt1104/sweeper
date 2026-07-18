@@ -13,6 +13,27 @@ import type { SelectionFeatures } from "@/lib/market/features";
 import type { SentinelAssessment } from "@/lib/sentinel/types";
 import type { EngineConfig } from "@/lib/engine/config";
 import type { TradeReadiness } from "@/lib/engine/state";
+import type { HorizonCollapse, HorizonPublication } from "@/lib/horizon/machine";
+import type { DeskPathFeatures } from "@/lib/agents/desk-features";
+import type { DeskModelView } from "@/lib/desk/compose";
+
+/** Desk signals agents may trade on — our models only (no privileged oracle). */
+export interface DeskSignals {
+  horizon: HorizonPublication | null;
+  /**
+   * @deprecated Prefer model.fairHome — kept as alias to desk fair home for UI/tests.
+   */
+  hybridThesisProb: number | null;
+  /** Pressure blend (tempo intensity + odds speed). */
+  pressure: number;
+  tempoIntensity: number;
+  /** Most recent Horizon collapse, if any this session. */
+  lastCollapse: HorizonCollapse | null;
+  /** Rolling match-minute paths (odds/tempo/hybrid) + derived returns/slopes. */
+  path: DeskPathFeatures;
+  /** Full desk pricing model — sole fair source for agent decisions. */
+  model: DeskModelView;
+}
 
 export type Side = "buy" | "sell";
 
@@ -76,6 +97,10 @@ export interface Decision {
   /** hash of the market tick this decision reacted to (set by the engine). */
   reactedToHash?: string;
   stoodDown?: boolean;
+  /** Optional structured tags for Arena / CausalRail. */
+  kind?: DecisionKind;
+  signalIds?: string[];
+  drivingInputs?: DrivingInputs;
 }
 
 /** Read-only portfolio view an agent uses to decide its next move. */
@@ -93,6 +118,17 @@ export interface AgentContext {
   cfg: EngineConfig;
   /** Always supplied by the engine; optional only for legacy direct-agent tests. */
   readiness?: TradeReadiness;
+  /** Horizon + Hybrid/Tempo desk signals (engine always supplies these). */
+  desk?: DeskSignals;
+}
+
+export type DecisionKind = "trade" | "stand_down" | "quote" | "hold";
+
+export interface DrivingInputs {
+  horizonThesis?: string | null;
+  hybridProb?: number | null;
+  sentinelKind?: string | null;
+  tempoIntensity?: number | null;
 }
 
 export interface Agent {

@@ -20,7 +20,8 @@ export function fmtClock(minute: number, phase: number): string {
   if (phase === 0) return "—";
   if (phase === 2) return "HT";
   if (phase === 4 || phase === 9) return "FT";
-  return `${minute}'`;
+  const rounded = Math.round(minute * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}'` : `${rounded.toFixed(1)}'`;
 }
 
 export function relativeKickoff(iso: string, now = new Date()): string {
