@@ -30,6 +30,7 @@ export interface TradeReadiness {
 
 export type SupervisorState =
   | "booting"
+  | "standby"
   | "awaiting_fixture"
   | "connecting"
   | "watching"

@@ -8,7 +8,9 @@ export async function GET() {
   const databaseReady = await eventStore().isReady();
   const status = supervisor().getStatus();
   const supervisorEnabled = process.env.SWEEPER_AUTO_START_LIVE === "true";
-  const supervisorReady = !supervisorEnabled || !["booting", "failed"].includes(status.state);
+  // Standby (rolling deploy lock wait) is healthy — only booting/failed block traffic.
+  const supervisorReady =
+    !supervisorEnabled || !["booting", "failed"].includes(status.state);
   const ready = databaseReady && supervisorReady;
   return Response.json(
     { ready, databaseReady, supervisorReady, supervisor: status },

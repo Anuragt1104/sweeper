@@ -7,12 +7,14 @@ import type { Fixture } from "@/lib/txline/types";
 
 const DEFAULT_WATCH_IDS = ["18257865", "18257739"];
 const POLL_MS = 5 * 60_000;
+const LOCK_RETRY_MS = 15_000;
 const START_EARLY_MS = 30 * 60_000;
 const WINDOW_PAST_MS = 3 * 60 * 60_000;
 const WINDOW_FUTURE_MS = 36 * 60 * 60_000;
 
 export class FixtureSupervisor {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private lockRetryTimer: ReturnType<typeof setInterval> | null = null;
   private lock: SupervisorLock | null = null;
   private polling = false;
   private completedIds = new Set<string>();
@@ -38,9 +40,54 @@ export class FixtureSupervisor {
     this.setStatus({ state: "booting", detail: "Acquiring the production supervisor lock" });
     this.lock = await this.store.tryAcquireSupervisorLock();
     if (!this.lock) {
-      this.setStatus({ state: "failed", detail: "Another process owns the production supervisor lock" });
+      // Rolling deploys: previous replica still holds the lock. Stay healthy and retry.
+      this.setStatus({
+        state: "standby",
+        detail: "Standby: waiting for production supervisor lock",
+      });
+      this.startLockRetry();
       return;
     }
+    await this.runAsLeader();
+  }
+
+  async stop(): Promise<void> {
+    this.clearLockRetry();
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.engineManager.stop();
+    await this.releaseLock();
+    this.setStatus({ state: "completed", detail: "Supervisor stopped" });
+  }
+
+  getStatus(): SupervisorStatus {
+    return { ...this.status };
+  }
+
+  private startLockRetry(): void {
+    if (this.lockRetryTimer) return;
+    this.lockRetryTimer = setInterval(() => {
+      void this.tryPromote();
+    }, LOCK_RETRY_MS);
+  }
+
+  private clearLockRetry(): void {
+    if (this.lockRetryTimer) clearInterval(this.lockRetryTimer);
+    this.lockRetryTimer = null;
+  }
+
+  private async tryPromote(): Promise<void> {
+    if (this.lock) {
+      this.clearLockRetry();
+      return;
+    }
+    this.lock = await this.store.tryAcquireSupervisorLock();
+    if (!this.lock) return;
+    this.clearLockRetry();
+    await this.runAsLeader();
+  }
+
+  private async runAsLeader(): Promise<void> {
     try {
       this.competitionId = await this.store.loadCompetitionId();
       const recovered = await this.engineManager.recoverUnfinished();
@@ -54,23 +101,18 @@ export class FixtureSupervisor {
       } else {
         await this.poll();
       }
-      this.timer = setInterval(() => { void this.poll(); }, POLL_MS);
+      if (!this.timer) {
+        this.timer = setInterval(() => {
+          void this.poll();
+        }, POLL_MS);
+      }
     } catch (error) {
-      this.setStatus({ state: "failed", detail: error instanceof Error ? error.message : "Supervisor startup failed" });
+      this.setStatus({
+        state: "failed",
+        detail: error instanceof Error ? error.message : "Supervisor startup failed",
+      });
       await this.releaseLock();
     }
-  }
-
-  async stop(): Promise<void> {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-    this.engineManager.stop();
-    await this.releaseLock();
-    this.setStatus({ state: "completed", detail: "Supervisor stopped" });
-  }
-
-  getStatus(): SupervisorStatus {
-    return { ...this.status };
   }
 
   private async poll(): Promise<void> {
@@ -89,7 +131,11 @@ export class FixtureSupervisor {
       }
       if (active?.status === "finished") {
         this.completedIds.add(active.fixture.id);
-        this.setStatus({ state: "completed", detail: `Completed fixture ${active.fixture.id}`, activeFixtureId: null });
+        this.setStatus({
+          state: "completed",
+          detail: `Completed fixture ${active.fixture.id}`,
+          activeFixtureId: null,
+        });
       }
 
       const fixtures = await this.source.listFixtures();
@@ -137,7 +183,10 @@ export class FixtureSupervisor {
         competitionId: this.competitionId,
       });
     } catch (error) {
-      this.setStatus({ state: "failed", detail: error instanceof Error ? error.message : "Fixture polling failed" });
+      this.setStatus({
+        state: "failed",
+        detail: error instanceof Error ? error.message : "Fixture polling failed",
+      });
     } finally {
       this.polling = false;
     }
