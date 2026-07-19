@@ -385,7 +385,7 @@ function signalMarkers(state: EngineState, marketType: string | null): AnalysisM
 function fillMarkers(state: EngineState, marketType: string): AnalysisMarker[] {
   const out: AnalysisMarker[] = [];
   for (const agent of state.agents) {
-    for (const marker of agent.fillMarkers) {
+    for (const marker of agent.fillMarkers ?? []) {
       if (marker.marketType !== marketType) continue;
       out.push({
         minute: marker.minute,

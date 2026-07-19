@@ -154,3 +154,20 @@ test("StrategyLabProjection atomically maps one contract into Observation, Analy
   assert.equal(swing.analysis.chart.mode, "swing");
   assert.ok(swing.analysis.chart.agentHint.length > 0);
 });
+
+test("StrategyLabProjection accepts persisted agent snapshots created before chart metadata existed", () => {
+  const { state } = runHeadless({ seed: 7 });
+  const legacyState = structuredClone(state) as typeof state;
+  for (const legacyAgent of legacyState.agents) {
+    delete (legacyAgent as Partial<AgentView>).fillMarkers;
+    delete (legacyAgent as Partial<AgentView>).curveMinutes;
+    delete (legacyAgent as Partial<AgentView>).contractPnl;
+  }
+
+  const projected = (["match_1x2", "ou_25", "next_score", "corners_ou", "swing"] as const)
+    .map((contract) => StrategyLabProjection.project(legacyState, contract));
+
+  assert.ok(projected.every((view) => view.strategy.rows.length === 11));
+  assert.ok(projected.every((view) => view.analysis.chart.markers.filter((marker) => marker.kind === "fill").length === 0));
+  assert.ok(projected.every((view) => view.research.rows.every((row) => row.contractPnl === 0)));
+});

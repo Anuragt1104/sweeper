@@ -1,4 +1,4 @@
-import type { EngineState, SelectionView } from "@/lib/engine/state";
+import type { AgentView, EngineState, SelectionView } from "@/lib/engine/state";
 import { projectContractDeck, type ContractDeck } from "@/lib/desk/contract-deck";
 import type { StrategyStanceView } from "@/lib/strategy-lab/stances";
 import { STRATEGY_DESIGNS, type StrategyDesign } from "@/lib/strategy-lab/designs";
@@ -143,12 +143,13 @@ export const StrategyLabProjection = {
     const priorTempo = state.shockStrip.tempo.series.at(-2);
     const latestCounts = state.shockStrip.tempo.latest;
     const stances = state.strategyStances ?? [];
+    const agents = state.agents.map(normalizeAgentView);
 
     const strategyRows = STRATEGY_DESIGNS.map((design) => ({
       design,
       stance: stances.find((stance) => stance.agentId === design.id && stance.contract === selectedContract)
         ?? missingStance(design, selectedContract),
-      agent: state.agents.find((agent) => agent.id === design.id) ?? null,
+      agent: agents.find((agent) => agent.id === design.id) ?? null,
     }));
     const marketType = contractMarketType(selectedContract);
     const chart = buildAnalysisChart(state, selectedContract, deck);
@@ -252,6 +253,15 @@ export const StrategyLabProjection = {
     };
   },
 };
+
+function normalizeAgentView(agent: AgentView): AgentView {
+  return {
+    ...agent,
+    curveMinutes: agent.curveMinutes ?? [],
+    fillMarkers: agent.fillMarkers ?? [],
+    contractPnl: agent.contractPnl ?? [],
+  };
+}
 
 function contractNav(
   state: EngineState,
