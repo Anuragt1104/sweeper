@@ -3,6 +3,7 @@ import test from "node:test";
 import { fixtureById, getFixtures } from "../lib/data/worldcup";
 import { resolveConfig } from "../lib/engine/config";
 import { SweeperEngine } from "../lib/engine/engine";
+import { EngineManager, RECOVERY_MAX_AGE_MS } from "../lib/engine/manager";
 import { MarketTickGenerator } from "../lib/market/ticks";
 import { MemoryEventStore } from "../lib/persistence/memory-event-store";
 import { selectFixture } from "../lib/supervisor/fixture-supervisor";
@@ -58,6 +59,33 @@ test("replaying stored ticks with the original session identity reproduces the l
     second.ingest(structuredClone(tick), tick.tsMs);
   }
   assert.equal(second.getState().ledger.root, first.getState().ledger.root);
+});
+
+test("recovery abandons stale sessions before loading their tick history", async () => {
+  const fixture = fixtureById("wc26-a-md2-arg-pol") ?? getFixtures()[0];
+  const config = resolveConfig({ seed: 29 });
+  const now = Date.parse("2026-07-19T12:00:00.000Z");
+  const store = new MemoryEventStore();
+  await store.createSession({
+    sessionId: "stale-live-session",
+    fixtureId: fixture.id,
+    competitionId: fixture.competitionId ?? null,
+    provenance: "live",
+    executionMode: "shadow",
+    configuration: config,
+    artifactHash: "artifact",
+    status: "running",
+    startedAtMs: now - RECOVERY_MAX_AGE_MS - 1,
+    completedAtMs: null,
+    latestState: null,
+    ledgerRoot: "",
+  });
+
+  const manager = new EngineManager(store, () => now);
+  assert.equal(await manager.recoverUnfinished(), null);
+  const abandoned = await store.loadSession("stale-live-session");
+  assert.equal(abandoned?.status, "failed");
+  assert.equal(abandoned?.completedAtMs, now);
 });
 
 test("fixture selection honors queued kickoff order and World Cup competition scope", () => {

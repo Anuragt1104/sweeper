@@ -33,6 +33,10 @@ import {
 import type { NormalizedScoreRecord } from "@/lib/txline/normalize";
 
 const TEMPO_POLL_MS = 45_000;
+// A football session cannot truthfully be resumed indefinitely. Besides being
+// stale, replaying an orphaned all-day odds stream can exhaust a small runtime
+// before the server becomes ready.
+export const RECOVERY_MAX_AGE_MS = 6 * 60 * 60_000;
 
 export interface StartOptions {
   fixtureId?: string;
@@ -62,7 +66,10 @@ export class EngineManager {
   private tempoTimer: ReturnType<typeof setInterval> | null = null;
   private ingestChain: Promise<void> = Promise.resolve();
 
-  constructor(private readonly store: EventStore = eventStore()) {}
+  constructor(
+    private readonly store: EventStore = eventStore(),
+    private readonly now: () => number = Date.now,
+  ) {}
 
   async resolveFixture(fixtureId?: string, mode: "simulation" | "live" = "simulation"): Promise<Fixture> {
     if (mode === "live") {
@@ -282,6 +289,14 @@ export class EngineManager {
   async recoverUnfinished(): Promise<EngineState | null> {
     const session = await this.store.loadUnfinishedSession();
     if (!session) return null;
+    if (this.now() - session.startedAtMs > RECOVERY_MAX_AGE_MS) {
+      await this.store.updateSession({
+        ...session,
+        status: "failed",
+        completedAtMs: this.now(),
+      });
+      return null;
+    }
     const fixture = await this.resolveFixture(session.fixtureId, "live");
     const engine = new SweeperEngine(
       fixture,
