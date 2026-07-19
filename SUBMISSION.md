@@ -12,11 +12,13 @@ The Railway URL is the judge target. Availability must be rechecked immediately 
 
 ## What judges see (no operator key)
 
-1. Open the Railway URL.
-2. Confirm command-bar provenance (`LIVE`/`DEMO`) and **SHADOW**/`SIMULATED` execution.
-3. Read the complete contract story above the fold: **Observation → Analysis → Strategy**. All seven stances explain trades, quotes, flat positions, stand-downs, ineligibility, and absent models.
-4. Optional deep links:
-   - `/?demo=act2&present=judge&scene=pre_goal` — recording-safe 39.5′→42′ Act II money shot
+1. Open the Railway URL — bare `/` is the landing page (Observe → Interpret → Act pitch).
+2. Enter the Lab via **Enter live desk** (`/?lab=live`) or **Watch the 3-minute replay** (`/?demo=act2&contract=match_1x2`).
+3. Confirm command-bar provenance (`LIVE` / `DEMO · deterministic`) and execution (`SHADOW` on live, `SIMULATED` on Act II).
+4. Read the complete contract story above the fold: **Observe → Interpret → Act**. All **eleven** stances explain trades, quotes, flat positions, stand-downs, ineligibility, and absent models (`NO PRICING MODEL` / `NO MODEL` where honest).
+5. Optional deep links:
+   - `/?demo=act2&present=judge&scene=pre_goal&contract=match_1x2` — recording-safe 39.5′→42′ Act II money shot
+   - `/?demo=act2&present=judge&scene=post_goal&contract=match_1x2&advanced=evidence&strategy=collapse_fade` — Decision Receipt
    - Recorded-live replay from `/api/recordings` when a session exists
 
 ## Live truthfulness
@@ -46,10 +48,11 @@ VIDEO_URL=
 
 Place under `submission/` (committed) once captured from Railway or local Demo:
 
-- `submission/01-desk-arena.png` — complete three-rail Strategy Lab
-- `submission/02-causal-fill.png` — Next score Analysis with explicit Strategy model boundaries
-- `submission/03-horizon-collapse.png` — 41′ goal shock, collapse, stances, and PnL
-- `submission/04-settlement-proof.png` — URL-linked Advanced proof workspace
+- `submission/01-desk-arena.png` — Observe / Interpret / Act Strategy Lab + session scoreboard
+- `submission/02-causal-fill.png` — contract focus with explicit Strategy model boundaries
+- `submission/03-horizon-collapse.png` — 41′ goal shock, Horizon SURPRISE, stances, and PnL
+- `submission/04-settlement-proof.png` — Evidence Decision Receipt + settlement guard
+- `submission/landing-strategy-lab.jpg` — landing hero still
 
 ## Release gates
 
@@ -60,7 +63,7 @@ Place under `submission/` (committed) once captured from Railway or local Demo:
 - [x] Public SSE / truthful Watchtower health / rate limits / spectator UI
 - [x] Docker + Railway config + CI
 - [x] Railway one-replica deploy with managed Postgres (`https://sweeper-production-0ef9.up.railway.app`)
-- [x] Strategy Lab hero + canonical seven-strategy stance registry + compact Arena scoreboard
+- [x] Landing page + Strategy Lab (Observe / Interpret / Act) + eleven-strategy registry + session scoreboard
 - [x] Keyboard/mobile/accessibility pass + Advanced workspace + regenerated screenshots
 - [x] Bounded live ledger + compact leaf hashes + paginated recovery
 - [x] Decision Receipt + source-aware proof endpoint + separate settlement guard

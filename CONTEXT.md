@@ -33,8 +33,8 @@ A written and coded declaration of what a Strategy reads (Observation sources an
 _Avoid_: inventing fills without a model, treating Tempo·Odds·Hybrid as Strategies
 
 **Strategy Lab**:
-The primary product surface — compose and compare Strategies over shared Observation sources and Analysis metrics on one live or demo Session. Main page is three rails (Observation → Analysis → Strategy); Arena is the Session scoreboard under Strategy; Causal rail is Advanced. Phase A includes a full visual redesign of the Lab (not a deferred polish pass).
-_Avoid_: Money desk (as the only framing), Arena-as-only-hero, inventing Strategy edges where no model exists, incremental restyle of the old stacked IA
+The primary product surface — compose and compare Strategies over shared Observation sources and Analysis metrics on one live or demo Session. Main page is three rails labelled **Observe → Interpret → Act** (domain layers: Observation → Analysis → Strategy). Arena is the Session scoreboard under Act; Causal / Evidence / Proofs live in Advanced. Bare `/` is the marketing landing; Lab opens via `lab`, `demo`, `contract`, `advanced`, or `rail` query keys. Live roster is eleven strategies from `lib/strategy-lab/designs.ts`.
+_Avoid_: Money desk (as the only framing), Arena-as-only-hero, inventing Strategy edges where no model exists, incremental restyle of the old stacked IA, saying “seven strategies” or naming Naive Momentum / Market Maker as live roster
 
 **Signal** (narrow):
 A Sentinel market-quality alert bound to an observation tick (e.g. sharp_move, outlier_print). Not a synonym for Observation or Analysis.

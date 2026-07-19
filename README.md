@@ -1,8 +1,8 @@
 # Sweeper × N+1 Machine
 
-Sweeper is an **autonomous six-strategy trading lab** on TxLINE. It makes the complete decision chain visible: source facts become desk analysis, analysis becomes a contract-specific Strategy stance, and every shadow fill remains Merkle-auditable.
+Sweeper is an **autonomous eleven-strategy trading lab** on TxLINE. It makes the complete decision chain visible: source facts become desk analysis, analysis becomes a contract-specific Strategy stance, and every shadow fill remains Merkle-auditable.
 
-**Hero surface:** landing page first, then one contract-focused Strategy Lab with three rails: **Observation → Analysis → Strategy**, plus **Strategy lenses** below. Arena is the compact session scoreboard inside Strategy; Evidence, full markets, Sentinel, Horizon internals, proofs, operator controls, and the legacy research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
+**Hero surface:** landing page first, then one contract-focused Strategy Lab with three rails labelled **Observe → Interpret → Act** (domain: Observation → Analysis → Strategy). Arena is the compact session scoreboard inside Act; Evidence, Markets, Sentinel, Horizon, Proofs, Operator, and the legacy Research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
 
 ## Production
 
@@ -12,29 +12,33 @@ Sweeper is an **autonomous six-strategy trading lab** on TxLINE. It makes the co
 
 ## Strategy Lab
 
-The five shareable contract views are Match 1X2, O/U 2.5, Next score, Corners O/U, and Swing. Selecting one updates all three rails atomically and persists as `?contract=<id>`.
+The five shareable contract views are Match 1X2, O/U 2.5, Next score, Corners O/U, and Swing. Selecting one updates all three rails atomically and persists as `?contract=<id>`. Coverage badges: `MODEL` · `BOOK ONLY` · `SIGNAL ONLY` · `NO MARKET`.
 
-- **Observation** shows only received score/book/events, raw tempo enrichment counts, and feed truth.
-- **Analysis** shows desk fair, Horizon, quality/regime/readiness, and an explicit `NO PRICING MODEL` boundary where appropriate.
-- **Strategy** shows live stances with exact `TRADE`, `QUOTE`, `FLAT`, `STAND DOWN`, `INELIGIBLE`, or `NO MODEL` language, preceded by the compact Arena scoreboard.
-- **Strategy lenses** (below the rails) plot roster equity bands and surface each strategy’s reads, stand-down rules, and fill authority on the selected contract.
+- **Observe** shows only received score/book/events, raw tempo enrichment counts, and feed truth.
+- **Interpret** shows desk fair, Horizon, quality/regime/readiness, path charts (5m/15m/30m/FULL), and an explicit `NO PRICING MODEL` boundary where appropriate.
+- **Act** shows the compact session scoreboard (Intensity / Kelly / Regime lifts vs Value) plus live stances with exact `TRADE`, `QUOTE`, `FLAT`, `STAND DOWN`, `INELIGIBLE`, or `NO MODEL` language.
 
-Strategy names, colors, display order, design metadata, eligibility, and fill authority come from one registry: `lib/strategy-lab/designs.ts`.
+Strategy names, colors, display order, design metadata, eligibility, and fill authority come from one registry: `lib/strategy-lab/designs.ts`. Operator cards: [`docs/strategy-lab/ROSTER.md`](./docs/strategy-lab/ROSTER.md).
 
 ### Strategy roster
 
-Roster (same tick, competing PnL):
+Roster (same tick, competing PnL) — eleven policies:
 
 1. Value — desk fair versus observed 1X2
 2. Guarded Momentum — Sentinel-confirmed sharp moves only
 3. Mean Reversion — fades outlier prints
-4. **Intensity Burst** — desk fair only inside MatchIntensity / tempo-accel windows
-5. **Hybrid Thesis** — Horizon material call + Hybrid/path features when the book underprices it
-6. **Collapse Fade** — path-aware fade after Horizon SURPRISE
+4. Intensity Burst — desk fair only inside MatchIntensity / tempo-accel windows
+5. Hybrid Thesis — Horizon + Hybrid/path features into executable 1X2
+6. Collapse Fade — path-aware fade after Horizon SURPRISE / THESIS DEAD
+7. Goal Overreaction — fades post-goal book overshoot after a cool-off
+8. Shock Fade — fades red-card / comeback panic toward desk fair
+9. Stale Reopen — fades misprints after suspend→reopen or stale-clear
+10. Regime Switcher — calm Value / normal Guarded / chaotic flatten
+11. Kelly Value — Value edge with fractional Kelly + drawdown throttle
 
 Agents receive a **desk-v1 pricing model** (score-state Poisson ⊕ tempo/odds hybrid tilt ⊕ Horizon-mapped 1X2 tilt — never raw Horizon class P as 1X2 fair). Path features use last-obs-before lookbacks and time-normalized vol. Live tempo polls recompute the same feature store agents read. Portfolios mark to **observed** prices (not privileged sim reference).
 
-Session scorecard surfaces Intensity lift (burst − value), path regime, Hybrid Thesis / Collapse Fade PnL, and warm-start tick counts.
+Session scorecard surfaces Intensity / Kelly / Regime lifts versus Value, event-specialist PnL, and warm-start tick counts.
 
 Eval across seeds:
 
@@ -52,7 +56,7 @@ The legacy Shock Strip remains an Advanced research view.
 
 ## Strategy lenses
 
-Main-dashboard research surface for the live Strategy roster: equity overlay, family filters, and per-strategy design parameters (reads, stand-downs, fillable contracts). Replaces the retired Tempo · Odds · Hybrid Shock Strip UI.
+Act-rail session scoreboard + family filters for the live Strategy roster: equity overlay and per-strategy design parameters (reads, stand-downs, fillable contracts). The Tempo · Odds · Hybrid Shock Strip remains Advanced → Research only.
 
 Historical strip assembler docs (engine still uses tempo/odds series for Observation/Analysis):
 
@@ -72,21 +76,22 @@ npm run dev
 
 Open `http://localhost:3000`. Public viewers need no key. Operators enter the shared key only for mutations.
 
-Deterministic demo (three-rail goal shock ~41′):
+Deterministic demo (three-rail goal shock ~41′). Bare `/` is the landing page; Lab requires a lab key:
 
 ```text
-http://localhost:3000/?demo=act2
+http://localhost:3000/?demo=act2&contract=match_1x2
 ```
 
 Judge-directed scenes (normal public Demo has no presenter controls):
 
 ```text
-/?demo=act2&present=judge&scene=overview
-/?demo=act2&present=judge&scene=pre_goal
-/?demo=act2&present=judge&scene=post_goal
-/?demo=act2&present=judge&scene=full_time
+/?demo=act2&present=judge&scene=overview&contract=match_1x2
+/?demo=act2&present=judge&scene=pre_goal&contract=match_1x2
+/?demo=act2&present=judge&scene=post_goal&contract=match_1x2
+/?demo=act2&present=judge&scene=full_time&contract=match_1x2
 ```
 
+Recording script: [`docs/DEMO_SCRIPT.md`](./docs/DEMO_SCRIPT.md). Judge evidence map: [`docs/JUDGE_EVIDENCE.md`](./docs/JUDGE_EVIDENCE.md).
 ## Run TxLINE live locally
 
 1. Copy `.env.example` → `.env.local`.

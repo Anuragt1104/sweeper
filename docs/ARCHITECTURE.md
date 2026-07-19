@@ -34,7 +34,7 @@ fixtures/snapshots/SSE         MarketTickGenerator
                                   │
                          StrategyLabProjection
                                   │
-                 Observation → Analysis → Strategy UI
+                 Observe / Interpret / Act UI (Observation → Analysis → Strategy)
 ```
 
 ## Live acceptance

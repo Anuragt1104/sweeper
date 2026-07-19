@@ -1,6 +1,9 @@
 # Strategy Lab Phase A — Extensive Handoff
 
-**Status:** Ready for implementation  
+**Status:** Phase A shipped. Treat this file as historical locked decisions from the grilling session.  
+**Current roster / IA:** eleven strategies in [`designs.ts`](../../lib/strategy-lab/designs.ts); UI rails Observe / Interpret / Act; see [`ROSTER.md`](./ROSTER.md), [`README.md`](./README.md), and [`docs/DEMO_SCRIPT.md`](../DEMO_SCRIPT.md).  
+**Naive Momentum** and **Market Maker** were removed from the live roster after Phase A.
+
 **Audience:** Next agent / implementer  
 **Locked via:** grilling session + [`CONTEXT.md`](../CONTEXT.md)  
 **Scope:** Phase A only (honest Lab). Multi-Contract fills beyond current 1X2/O/U = Phase B.

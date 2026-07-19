@@ -50,7 +50,7 @@ Baseline formulas and severity weights in ideation docs are a **starting point**
 22. As a viewer, I want the strip to update from the existing SSE engine state, so that I do not need a second feed subscription.
 23. As a viewer, I want a shared match-minute axis and playhead, so that Tempo, Odds, and Hybrid stay comparable.
 24. As an implementer, I want severity weights and blend coefficients to remain tunable, so that I can improve strategies without a schema rewrite.
-25. As an implementer, I want exactly three research track types in this legacy feature, so that it stays distinct from the seven Strategy policies.
+25. As an implementer, I want exactly three research track types in this legacy feature, so that it stays distinct from the eleven Strategy policies.
 26. As an implementer, I want the primary test seam to be ShockStripAssembler → ShockStripState, so that UI and HTTP adapters stay out of unit tests.
 27. As a judge, I want the strip to reinforce the N+1 story (futures that die when reality arrives), so that Hybrid collapses connect visually to the Horizon Deck.
 28. As a security-conscious operator, I want API keys and TxLINE tokens never in the browser or committed docs, so that secrets stay server-side.
@@ -65,7 +65,7 @@ Baseline formulas and severity weights in ideation docs are a **starting point**
 
 ## Implementation Decisions
 
-1. **Three named research tracks only:** `tempo` | `odds` | `hybrid`. These are not Strategies. **Hybrid Thesis is one of seven Strategy policies**, not a fourth strip track.
+1. **Three named research tracks only:** `tempo` | `odds` | `hybrid`. These are not Strategies. **Hybrid Thesis is one of eleven Strategy policies**, not a fourth strip track.
 2. **Primary module:** a Shock Strip assembler that ingests market ticks (and Horizon side-state) and emits serializable strip state on the engine snapshot consumed by SSE/UI.
 3. **Engine order:** Horizon processes the tick first; the strip assembles after, reading thesis/collapse/odds-swing. Strip output never feeds Horizon settlement. Agents may read Horizon + strip Hybrid/Tempo via `AgentContext.desk`.
 4. **Tempo inputs:** TxLINE score-derived events (goal, yellow, red, corner, phase) plus optional enrichment snapshot (shots, SOT, fouls, offsides, attacks, dangerous attacks, possession). Enrichment source is sim in simulation/replay; API-Football when configured in live.
