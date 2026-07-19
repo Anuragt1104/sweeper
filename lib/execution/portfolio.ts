@@ -10,7 +10,7 @@
  * Mark-to-market uses the model *fair* probability (the honest reference), so
  * the live equity curve reflects edge, not the noise/anomalies on the wire.
  */
-import type { Fill, PortfolioView } from "@/lib/agents/types";
+import type { Fill, PortfolioView, Side } from "@/lib/agents/types";
 
 export interface Position {
   selId: string;
@@ -36,10 +36,33 @@ export interface PortfolioMetrics {
   exposure: number; // Σ |net|*mark
 }
 
+/** Per underlying market (match_result / total_goals / …) attribution. */
+export interface MarketPnLSlice {
+  marketType: string;
+  realized: number;
+  unrealized: number;
+  pnl: number;
+  trades: number;
+  exposure: number;
+}
+
 export interface EquityPoint {
   seq: number;
   tsMs: number;
+  minute: number;
   equity: number;
+}
+
+/** Fill / decision marker aligned to an equity-curve index. */
+export interface PortfolioMarker {
+  index: number;
+  seq: number;
+  minute: number;
+  side: Side;
+  marketType: string;
+  selectionKey: string;
+  size: number;
+  rationale: string;
 }
 
 export class Portfolio implements PortfolioView {
@@ -52,7 +75,9 @@ export class Portfolio implements PortfolioView {
   private totalCloses = 0;
   private peakEquity: number;
   private maxDD = 0;
+  private tradesByMarket = new Map<string, number>();
   readonly curve: EquityPoint[] = [];
+  readonly markers: PortfolioMarker[] = [];
 
   constructor(agentId: string, bankroll: number) {
     this.agentId = agentId;
@@ -73,17 +98,16 @@ export class Portfolio implements PortfolioView {
     const p = this.slot(fill.selId, fill.marketType, fill.selectionKey);
     const signed = fill.side === "buy" ? fill.size : -fill.size;
     this.trades += 1;
+    this.tradesByMarket.set(fill.marketType, (this.tradesByMarket.get(fill.marketType) ?? 0) + 1);
     this.turnover += fill.price * fill.size;
 
     if (p.net === 0 || sign(p.net) === sign(signed)) {
-      // opening or increasing in the same direction → update VWAP
       const newAbs = Math.abs(p.net) + Math.abs(signed);
       p.avg = (p.avg * Math.abs(p.net) + fill.price * Math.abs(signed)) / (newAbs || 1);
       p.net += signed;
       return;
     }
 
-    // reducing / closing / flipping
     const closeQty = Math.min(Math.abs(signed), Math.abs(p.net));
     const pnl = p.net > 0 ? closeQty * (fill.price - p.avg) : closeQty * (p.avg - fill.price);
     p.realized += pnl;
@@ -93,13 +117,38 @@ export class Portfolio implements PortfolioView {
     const remaining = Math.abs(signed) - closeQty;
     p.net += signed;
     if (remaining > 0) {
-      // flipped through zero → new position at the fill price
       p.avg = fill.price;
     }
     if (p.net === 0) p.avg = 0;
   }
 
-  /** Update the mark for one selection (fair prob). */
+  /**
+   * Record a fill marker after the equity snapshot for this tick so `index`
+   * aligns with `curve[index]`.
+   */
+  recordMarker(opts: {
+    seq: number;
+    minute: number;
+    side: Side;
+    marketType: string;
+    selectionKey: string;
+    size: number;
+    rationale: string;
+  }) {
+    const index = Math.max(0, this.curve.length - 1);
+    this.markers.push({
+      index,
+      seq: opts.seq,
+      minute: opts.minute,
+      side: opts.side,
+      marketType: opts.marketType,
+      selectionKey: opts.selectionKey,
+      size: opts.size,
+      rationale: opts.rationale.slice(0, 120),
+    });
+    if (this.markers.length > 80) this.markers.splice(0, this.markers.length - 80);
+  }
+
   mark(selId: string, prob: number) {
     const p = this.pos.get(selId);
     if (p) p.mark = prob;
@@ -127,15 +176,13 @@ export class Portfolio implements PortfolioView {
     return this.bankroll + this.realizedTotal() + this.unrealized();
   }
 
-  /** Record an equity-curve point and update drawdown. */
-  snapshot(seq: number, tsMs: number) {
+  snapshot(seq: number, tsMs: number, minute: number) {
     const eq = this.equity();
     this.peakEquity = Math.max(this.peakEquity, eq);
     this.maxDD = Math.max(this.maxDD, this.peakEquity - eq);
-    this.curve.push({ seq, tsMs, equity: round2(eq) });
+    this.curve.push({ seq, tsMs, minute, equity: round2(eq) });
   }
 
-  /** Settle every open position at its payout (1 winner / 0 loser). */
   settle(outcomes: Map<string, 0 | 1>) {
     for (const p of this.pos.values()) {
       if (p.net === 0) continue;
@@ -152,6 +199,33 @@ export class Portfolio implements PortfolioView {
 
   positions(): Position[] {
     return [...this.pos.values()].filter((p) => p.net !== 0 || p.realized !== 0);
+  }
+
+  marketSlice(marketType: string): MarketPnLSlice {
+    let realized = 0;
+    let unrealized = 0;
+    let exposure = 0;
+    for (const p of this.pos.values()) {
+      if (p.marketType !== marketType) continue;
+      realized += p.realized;
+      unrealized += p.net * (p.mark - p.avg);
+      exposure += Math.abs(p.net) * p.mark;
+    }
+    return {
+      marketType,
+      realized: round2(realized),
+      unrealized: round2(unrealized),
+      pnl: round2(realized + unrealized),
+      trades: this.tradesByMarket.get(marketType) ?? 0,
+      exposure: round2(exposure),
+    };
+  }
+
+  marketSlices(): MarketPnLSlice[] {
+    const types = new Set<string>();
+    for (const p of this.pos.values()) types.add(p.marketType);
+    for (const t of this.tradesByMarket.keys()) types.add(t);
+    return [...types].map((t) => this.marketSlice(t));
   }
 
   metrics(): PortfolioMetrics {

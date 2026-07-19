@@ -3,6 +3,10 @@ import { projectContractDeck, type ContractDeck } from "@/lib/desk/contract-deck
 import type { StrategyStanceView } from "@/lib/strategy-lab/stances";
 import { STRATEGY_DESIGNS, type StrategyDesign } from "@/lib/strategy-lab/designs";
 import {
+  buildAnalysisChart,
+  type AnalysisChart,
+} from "@/lib/strategy-lab/analysis-chart";
+import {
   ODDS_VIEW_LABELS,
   type OddsViewId,
   type SideCounts,
@@ -66,12 +70,23 @@ export interface StrategyLabView {
     quality: number;
     readiness: boolean;
     referenceStatus: string;
+    /** @deprecated Prefer chart.series — kept for residual/tests during transition. */
     timeline: Array<{
       minute: number;
       bookProbability: number | null;
       deskProbability: number | null;
       label: string | null;
     }>;
+    eventMarkers: Array<{
+      minute: number;
+      kind: string;
+      label: string;
+    }>;
+    referenceKind: "desk_fair" | "path_lens" | null;
+    referenceLabel: string | null;
+    referenceDrivesTrades: boolean;
+    /** Contract-specific buckets / lines / markers for agents. */
+    chart: AnalysisChart;
   };
   strategy: {
     rows: Array<{
@@ -80,6 +95,41 @@ export interface StrategyLabView {
       agent: EngineState["agents"][number] | null;
     }>;
     leader: string | null;
+    /** Compact A/B lifts for the arena head. */
+    lifts: Array<{ id: string; label: string; value: number | null }>;
+  };
+  /**
+   * Coherent research surface: the same desk inputs agents read, plus
+   * decision→fill→contract-PnL attribution for the selected contract.
+   */
+  research: {
+    chain: string;
+    deskInputs: {
+      fairHome: number | null;
+      fairAway: number | null;
+      edgeHome: number | null;
+      regime: string;
+      intensity: string;
+      quality: number;
+      pressure: number | null;
+      readiness: boolean;
+      horizonThesis: string | null;
+    };
+    marketType: string | null;
+    rows: Array<{
+      design: StrategyDesign;
+      stance: StrategyStanceView;
+      agent: EngineState["agents"][number] | null;
+      /** Whole-book PnL. */
+      totalPnl: number;
+      /** PnL attributed to the selected contract's market (0 if no fills there). */
+      contractPnl: number;
+      contractTrades: number;
+      contractExposure: number;
+      /** Fill markers on this contract only (indices into equity curve). */
+      contractMarkers: EngineState["agents"][number]["fillMarkers"];
+      lastDriver: string | null;
+    }>;
   };
 }
 
@@ -93,6 +143,27 @@ export const StrategyLabProjection = {
     const priorTempo = state.shockStrip.tempo.series.at(-2);
     const latestCounts = state.shockStrip.tempo.latest;
     const stances = state.strategyStances ?? [];
+
+    const strategyRows = STRATEGY_DESIGNS.map((design) => ({
+      design,
+      stance: stances.find((stance) => stance.agentId === design.id && stance.contract === selectedContract)
+        ?? missingStance(design, selectedContract),
+      agent: state.agents.find((agent) => agent.id === design.id) ?? null,
+    }));
+    const marketType = contractMarketType(selectedContract);
+    const chart = buildAnalysisChart(state, selectedContract, deck);
+    const timelineFromChart = chart.series[0]
+      ? chart.series[0].points.slice(-48).map((point) => {
+          const model = chart.series.find((s) => s.role === "model");
+          const modelPt = model?.points.find((p) => Math.abs(p.minute - point.minute) < 0.6);
+          return {
+            minute: point.minute,
+            bookProbability: chart.series[0].role === "book" ? point.value : null,
+            deskProbability: modelPt?.value ?? null,
+            label: chart.series[0].label,
+          };
+        })
+      : [];
 
     return {
       selectedContract,
@@ -119,16 +190,64 @@ export const StrategyLabProjection = {
         quality: state.quality,
         readiness: state.tradeReadiness.ready,
         referenceStatus: state.deskModel?.ready ? state.deskModel.weightsVersion : "No robust reference",
-        timeline: selectedTimeline(state, selectedContract),
+        timeline: timelineFromChart,
+        eventMarkers: chart.markers
+          .filter((marker) => marker.tone === "event")
+          .map((marker) => ({ minute: marker.minute, kind: marker.kind, label: marker.label })),
+        referenceKind: chart.series.some((s) => s.role === "model")
+          ? selectedContract === "match_1x2"
+            ? "desk_fair"
+            : "path_lens"
+          : null,
+        referenceLabel:
+          selectedContract === "match_1x2"
+            ? "Desk fair (traded)"
+            : chart.series.some((s) => s.role === "model")
+              ? "Model / thesis series"
+              : null,
+        referenceDrivesTrades: selectedContract === "match_1x2" && Boolean(state.deskModel?.ready),
+        chart,
       },
       strategy: {
-        rows: STRATEGY_DESIGNS.map((design) => ({
-          design,
-          stance: stances.find((stance) => stance.agentId === design.id && stance.contract === selectedContract)
-            ?? missingStance(design, selectedContract),
-          agent: state.agents.find((agent) => agent.id === design.id) ?? null,
-        })),
+        rows: strategyRows,
         leader: state.leader,
+        lifts: [
+          { id: "intensity", label: "Intensity lift", value: state.scorecard.intensityEdge },
+          { id: "kelly", label: "Kelly lift", value: state.scorecard.kellyEdge },
+          { id: "regime", label: "Regime lift", value: state.scorecard.regimeLift },
+        ],
+      },
+      research: {
+        chain: "Observation tick → desk model / intensity / Horizon / Sentinel → stance → fill → contract PnL",
+        deskInputs: {
+          fairHome: state.deskModel?.ready ? state.deskModel.fair1x2.home : null,
+          fairAway: state.deskModel?.ready ? state.deskModel.fair1x2.away : null,
+          edgeHome: state.deskModel?.ready ? state.deskModel.edgeVsObs.home : null,
+          regime: state.deskPath?.regime ?? state.scorecard.regime,
+          intensity: intensityLabel(state),
+          quality: state.quality,
+          pressure: state.deskModel?.hybrid.pressure ?? null,
+          readiness: state.tradeReadiness.ready,
+          horizonThesis: state.horizon.current?.thesis ?? null,
+        },
+        marketType,
+        rows: strategyRows.map((row) => {
+          const slice = marketType
+            ? row.agent?.contractPnl.find((entry) => entry.marketType === marketType)
+            : undefined;
+          const contractMarkers = (row.agent?.fillMarkers ?? []).filter((marker) =>
+            marketType ? marker.marketType === marketType : false,
+          );
+          return {
+            ...row,
+            totalPnl: row.agent?.metrics.pnl ?? 0,
+            contractPnl: slice?.pnl ?? 0,
+            contractTrades: slice?.trades ?? 0,
+            contractExposure: slice?.exposure ?? 0,
+            contractMarkers,
+            lastDriver: driverLabel(row.agent?.drivingInputs ?? null, row.agent?.lastDecisionKind ?? null),
+          };
+        }),
       },
     };
   },
@@ -266,31 +385,36 @@ function recentEvents(state: EngineState): ObservationEvent[] {
   }));
   return [...txline, ...enrichment]
     .sort((a, b) => b.minute - a.minute)
-    .filter((event, index, all) => all.findIndex((candidate) => candidate.minute === event.minute && candidate.label === event.label) === index)
-    .slice(0, 3);
-}
-
-function selectedTimeline(state: EngineState, contract: OddsViewId): StrategyLabView["analysis"]["timeline"] {
-  const book = state.shockStrip.odds.views[contract]?.points ?? [];
-  const lens = state.shockStrip.strategies[contract]?.series ?? [];
-  return book.slice(-32).map((point) => {
-    const primary = point.favoriteProb ?? point.selections[0]?.prob ?? null;
-    const aligned = lens.find((sample) => Math.abs(sample.minute - point.minute) < 0.01);
-    return {
-      minute: point.minute,
-      bookProbability: primary,
-      deskProbability: contract === "match_1x2" && state.deskModel?.ready ? aligned?.hybridProb ?? null : null,
-      label: point.favorite ?? point.selections[0]?.label ?? null,
-    };
-  });
+    .filter((event, index, all) => all.findIndex((candidate) => candidate.minute === event.minute && candidate.label === event.label) === index);
 }
 
 function pricingBoundary(deck: ContractDeck, contract: OddsViewId): string | null {
   if (deck.source === "unavailable") return "NO MARKET · TxLINE has not returned this contract.";
   if (contract === "corners_ou" || contract === "swing" || deck.source === "book_lens") {
-    return "NO PRICING MODEL · Observed book/path only; no fair value is claimed.";
+    return "NO PRICING MODEL · Observed book/path only; agents do not trade this contract.";
   }
   return null;
+}
+
+function contractMarketType(contract: OddsViewId): string | null {
+  if (contract === "match_1x2") return "match_result";
+  if (contract === "ou_25") return "total_goals";
+  if (contract === "corners_ou") return "corners";
+  return null;
+}
+
+function driverLabel(
+  inputs: EngineState["agents"][number]["drivingInputs"],
+  kind: EngineState["agents"][number]["lastDecisionKind"],
+): string | null {
+  if (!inputs && !kind) return null;
+  const parts: string[] = [];
+  if (kind) parts.push(kind);
+  if (inputs?.sentinelKind) parts.push(String(inputs.sentinelKind));
+  if (inputs?.horizonThesis) parts.push(`thesis ${inputs.horizonThesis}`);
+  if (inputs?.hybridProb != null) parts.push(`fair ${(inputs.hybridProb * 100).toFixed(0)}%`);
+  if (inputs?.tempoIntensity != null) parts.push(`tempo ${(inputs.tempoIntensity * 100).toFixed(0)}`);
+  return parts.join(" · ") || null;
 }
 
 function provenanceLabel(provenance: EngineState["provenance"]): string {
@@ -304,6 +428,7 @@ function intensityLabel(state: EngineState): string {
   if (!intensity) return "warming";
   if (intensity.flurrySummary) return intensity.flurrySummary;
   if (intensity.redCardActive) return "red-card state";
+  if (intensity.isComeback) return "comeback";
   if (intensity.cardsLast5Min > 0) return `${intensity.cardsLast5Min} card${intensity.cardsLast5Min === 1 ? "" : "s"} in 5′`;
   if (intensity.goalsLast10Min > 0) return `${intensity.goalsLast10Min} goal in 10′`;
   return "normal";

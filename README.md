@@ -1,8 +1,8 @@
 # Sweeper × N+1 Machine
 
-Sweeper is an **autonomous seven-strategy trading lab** on TxLINE. It makes the complete decision chain visible: source facts become desk analysis, analysis becomes a contract-specific Strategy stance, and every shadow fill remains Merkle-auditable.
+Sweeper is an **autonomous six-strategy trading lab** on TxLINE. It makes the complete decision chain visible: source facts become desk analysis, analysis becomes a contract-specific Strategy stance, and every shadow fill remains Merkle-auditable.
 
-**Hero surface:** one contract-focused Strategy Lab with three rails: **Observation → Analysis → Strategy**. Arena is the compact session scoreboard inside Strategy; Evidence, full markets, Sentinel, Horizon internals, proofs, operator controls, and the legacy research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
+**Hero surface:** landing page first, then one contract-focused Strategy Lab with three rails: **Observation → Analysis → Strategy**, plus **Strategy lenses** below. Arena is the compact session scoreboard inside Strategy; Evidence, full markets, Sentinel, Horizon internals, proofs, operator controls, and the legacy research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
 
 ## Production
 
@@ -16,7 +16,8 @@ The five shareable contract views are Match 1X2, O/U 2.5, Next score, Corners O/
 
 - **Observation** shows only received score/book/events, raw tempo enrichment counts, and feed truth.
 - **Analysis** shows desk fair, Horizon, quality/regime/readiness, and an explicit `NO PRICING MODEL` boundary where appropriate.
-- **Strategy** shows seven live stances with exact `TRADE`, `QUOTE`, `FLAT`, `STAND DOWN`, `INELIGIBLE`, or `NO MODEL` language, followed by the compact Arena scoreboard.
+- **Strategy** shows live stances with exact `TRADE`, `QUOTE`, `FLAT`, `STAND DOWN`, `INELIGIBLE`, or `NO MODEL` language, preceded by the compact Arena scoreboard.
+- **Strategy lenses** (below the rails) plot roster equity bands and surface each strategy’s reads, stand-down rules, and fill authority on the selected contract.
 
 Strategy names, colors, display order, design metadata, eligibility, and fill authority come from one registry: `lib/strategy-lab/designs.ts`.
 
@@ -25,16 +26,15 @@ Strategy names, colors, display order, design metadata, eligibility, and fill au
 Roster (same tick, competing PnL):
 
 1. Value — desk fair versus observed 1X2
-2. Naive Momentum — chases every large move  
-3. Guarded Momentum — Sentinel-confirmed sharp moves only (A/B vs naive)  
-4. Mean Reversion — fades outlier prints  
-5. Market Maker — quotes around reference  
-6. **Hybrid Thesis** — Horizon material call + Hybrid/path features when the book underprices it  
-7. **Collapse Fade** — path-aware fade after Horizon SURPRISE  
+2. Guarded Momentum — Sentinel-confirmed sharp moves only
+3. Mean Reversion — fades outlier prints
+4. **Intensity Burst** — desk fair only inside MatchIntensity / tempo-accel windows
+5. **Hybrid Thesis** — Horizon material call + Hybrid/path features when the book underprices it
+6. **Collapse Fade** — path-aware fade after Horizon SURPRISE
 
 Agents receive a **desk-v1 pricing model** (score-state Poisson ⊕ tempo/odds hybrid tilt ⊕ Horizon-mapped 1X2 tilt — never raw Horizon class P as 1X2 fair). Path features use last-obs-before lookbacks and time-normalized vol. Live tempo polls recompute the same feature store agents read. Portfolios mark to **observed** prices (not privileged sim reference).
 
-Session scorecard surfaces Sentinel edge (guarded − naive), path regime, Hybrid Thesis / Collapse Fade PnL, and warm-start tick counts.
+Session scorecard surfaces Intensity lift (burst − value), path regime, Hybrid Thesis / Collapse Fade PnL, and warm-start tick counts.
 
 Eval across seeds:
 
@@ -50,7 +50,11 @@ Live ledgers retain the latest 256 full records in process plus all compact leaf
 
 The legacy Shock Strip remains an Advanced research view.
 
-The minute-aligned Tempo · Odds · Hybrid strip remains an Advanced research view. These are analysis tracks, not the seven Strategy policies and not the primary product language. Spec and historical handoff:
+## Strategy lenses
+
+Main-dashboard research surface for the live Strategy roster: equity overlay, family filters, and per-strategy design parameters (reads, stand-downs, fillable contracts). Replaces the retired Tempo · Odds · Hybrid Shock Strip UI.
+
+Historical strip assembler docs (engine still uses tempo/odds series for Observation/Analysis):
 
 - [`docs/shock-strip/README.md`](./docs/shock-strip/README.md)
 - [`docs/shock-strip/HANDOFF.md`](./docs/shock-strip/HANDOFF.md)
@@ -148,7 +152,7 @@ TxLINE SSE / recorded / simulation
             ▼
      SweeperEngine.ingest(tick)
         ├─ HorizonMachine
-        ├─ Sentinel + seven strategies
+        ├─ Sentinel + six strategies
         ├─ readiness → shadow / simulated exchange
         └─ bounded Merkle ledger → Postgres archive → validateStatV2 guard
             ▼

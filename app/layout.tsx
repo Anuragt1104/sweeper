@@ -16,9 +16,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sweeper Strategy Lab · Observation → Analysis → Strategy",
+  title: "Sweeper · See every decision before the trade",
   description:
-    "A broadcast-grade Strategy Lab for TxLINE observations, desk analysis, and seven shadow-execution strategies.",
+    "A transparent Strategy Lab where live football market facts become contract-specific analysis, eleven strategy stances, and auditable shadow execution.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,4 +1,5 @@
 import type { Severity, SignalKind } from "@/lib/sentinel/types";
+import type { RunProvenance } from "@/lib/engine/state";
 
 export function pnlColor(x: number): string {
   return x > 0.0001 ? "text-up" : x < -0.0001 ? "text-down" : "text-muted";
@@ -47,4 +48,10 @@ export function shortHash(h?: string, n = 8): string {
 export function clockFromMs(ms: number): string {
   const d = new Date(ms);
   return d.toISOString().slice(11, 19);
+}
+
+export function feedStreamLabel(accepted: boolean, provenance: RunProvenance): string {
+  if (provenance === "recorded_live") return "N/A · replay";
+  if (provenance === "simulation") return "N/A · simulation";
+  return accepted ? "Accepted" : "Waiting";
 }

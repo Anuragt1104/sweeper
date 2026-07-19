@@ -39,6 +39,7 @@ import { selId } from "@/lib/market/ids";
 import {
   EMPTY_SIGNAL_COUNTS,
   OFFLINE_FEED_HEALTH,
+  remapSampledIndex,
   sampleCurve,
   type AgentView,
   type AnchorInfo,
@@ -249,6 +250,7 @@ export class SweeperEngine {
       lastCollapse: horizonState.lastCollapse,
       path,
       model,
+      intensity: this.lastIntensity,
     };
   }
 
@@ -309,6 +311,12 @@ export class SweeperEngine {
     }
 
     // 3. agents decide → execute
+    const pendingMarkers: Array<{
+      agentId: string;
+      fill: import("@/lib/agents/types").Fill;
+      rationale: string;
+      minute: number;
+    }> = [];
     for (const agent of this.agents) {
       const book = this.books.get(agent.id)!;
       const decision = agent.onTick({
@@ -364,6 +372,12 @@ export class SweeperEngine {
               { ...res.fill, portfolioAfter: book.metrics() },
               decisionHash,
             );
+            pendingMarkers.push({
+              agentId: agent.id,
+              fill: res.fill,
+              rationale: decision.rationale,
+              minute: tick.minute,
+            });
           }
         }
       } else {
@@ -378,13 +392,32 @@ export class SweeperEngine {
             { ...fill, portfolioAfter: book.metrics() },
             decisionHash,
           );
+          pendingMarkers.push({
+            agentId: agent.id,
+            fill,
+            rationale: decision.rationale,
+            minute: tick.minute,
+          });
         }
       }
     }
 
-    // 4. mark + snapshot equity curves (post-fill)
+    // 4. mark + snapshot equity curves (post-fill), then align fill markers to curve index
     this.markAll(tick);
-    for (const book of this.books.values()) book.snapshot(tick.seq, tick.tsMs);
+    for (const book of this.books.values()) book.snapshot(tick.seq, tick.tsMs, tick.minute);
+    for (const pending of pendingMarkers) {
+      const book = this.books.get(pending.agentId);
+      if (!book) continue;
+      book.recordMarker({
+        seq: pending.fill.seq,
+        minute: pending.minute,
+        side: pending.fill.side,
+        marketType: pending.fill.marketType,
+        selectionKey: pending.fill.selectionKey,
+        size: pending.fill.size,
+        rationale: pending.rationale,
+      });
+    }
 
     this.cursor += 1;
     this.updatedAtMs = tick.tsMs;
@@ -456,7 +489,7 @@ export class SweeperEngine {
       const outcomes = new Map(Object.entries(receipt.outcomes)) as Map<string, 0 | 1>;
       for (const book of this.books.values()) {
         book.settle(outcomes);
-        book.snapshot(tick.seq + 1, tick.tsMs + this.config.tickServerMs);
+        book.snapshot(tick.seq + 1, tick.tsMs + this.config.tickServerMs, tick.minute);
       }
     } else {
       const hold: Signal = {
@@ -515,7 +548,7 @@ export class SweeperEngine {
     const outcomes = new Map(Object.entries(receipt.outcomes)) as Map<string, 0 | 1>;
     for (const book of this.books.values()) {
       book.settle(outcomes);
-      book.snapshot(tick.seq + 1, verifiedAtMs);
+      book.snapshot(tick.seq + 1, verifiedAtMs, tick.minute);
     }
     this.ledger.append(
       "settlement",
@@ -567,6 +600,27 @@ export class SweeperEngine {
               : last
                 ? "hold"
                 : null);
+      const rawCurve = book.curve.map((c) => c.equity);
+      const curve = sampleCurve(rawCurve, 120);
+      const curveMinutes = sampleCurve(book.curve.map((point) => point.minute), 120);
+      const fillMarkers = book.markers.slice(-40).map((marker) => ({
+        index: remapSampledIndex(marker.index, rawCurve.length || 1, curve.length || 1),
+        minute: marker.minute,
+        side: marker.side,
+        marketType: marker.marketType,
+        selectionKey: marker.selectionKey,
+        size: marker.size,
+        rationale: marker.rationale,
+      }));
+      const contractPnl = book.marketSlices().map((slice) => ({
+        contract: marketTypeToContract(slice.marketType),
+        marketType: slice.marketType,
+        pnl: slice.pnl,
+        realized: slice.realized,
+        unrealized: slice.unrealized,
+        trades: slice.trades,
+        exposure: slice.exposure,
+      }));
       return {
         id: a.id,
         name: a.name,
@@ -584,11 +638,10 @@ export class SweeperEngine {
         })),
         lastRationale: last?.rationale ?? "—",
         stoodDown: last?.stoodDown ?? false,
-        // Denser curve for the desk hero sparklines (~120 pts).
-        curve: sampleCurve(
-          book.curve.map((c) => c.equity),
-          120,
-        ),
+        curve,
+        curveMinutes,
+        fillMarkers,
+        contractPnl,
         lastDecisionKind: kind,
         lastSignalIds: last?.signalIds ?? [],
         drivingInputs: last?.drivingInputs ?? null,
@@ -783,6 +836,13 @@ function tickPayload(tick: MarketTick) {
 
 function fillSummary(f: { agentId: string; side: string; size: number; selectionKey: string; price: number }): string {
   return `${f.agentId} ${f.side} ${f.size} ${f.selectionKey} @ ${f.price}`;
+}
+
+function marketTypeToContract(marketType: string): string {
+  if (marketType === "match_result") return "match_1x2";
+  if (marketType === "total_goals") return "ou_25";
+  if (marketType === "total_corners" || marketType === "corners") return "corners_ou";
+  return marketType;
 }
 
 function round2(x: number): number {

@@ -53,13 +53,13 @@ function main() {
     );
   });
 
-  const naive = state.agents.find((a) => a.id === "momentum_naive");
-  const guarded = state.agents.find((a) => a.id === "momentum_guarded");
-  if (naive && guarded) {
-    const diff = guarded.metrics.pnl - naive.metrics.pnl;
+  const value = state.agents.find((a) => a.id === "value");
+  const intensity = state.agents.find((a) => a.id === "intensity_burst");
+  if (value && intensity) {
+    const diff = intensity.metrics.pnl - value.metrics.pnl;
     console.log(
-      `\nSentinel value: Guarded Momentum beat Naive Momentum by ${diff.toFixed(2)} units` +
-        ` (${guarded.metrics.pnl.toFixed(2)} vs ${naive.metrics.pnl.toFixed(2)}).`,
+      `\nIntensity lift: Intensity Burst vs Value by ${diff.toFixed(2)} units` +
+        ` (${intensity.metrics.pnl.toFixed(2)} vs ${value.metrics.pnl.toFixed(2)}).`,
     );
   }
 

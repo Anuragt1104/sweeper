@@ -8,7 +8,7 @@ import { horizonHazardTo1x2Tilt } from "@/lib/desk/horizon-map";
 
 test("desk model fairHome is never equal to raw Horizon goal_home class P on a live run sample", () => {
   const { state, engine } = runHeadless({ seed: 7 });
-  assert.ok(state.agents.length >= 7);
+  assert.ok(state.agents.length >= 6);
   // Spot-check: Horizon-mapped tilt magnitude is capped well below class probabilities.
   const tilt = horizonHazardTo1x2Tilt(
     {

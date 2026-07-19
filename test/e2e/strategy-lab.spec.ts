@@ -9,6 +9,8 @@ test("Strategy Lab renders the complete mental model for a spectator", async ({ 
   await expect(page.getByText("SIMULATED", { exact: true })).toBeVisible();
   await expect(page.getByText(/^Spectator$/i)).toBeVisible();
   await expect(page.locator(".stance-row")).toHaveCount(7);
+  await expect(page.locator('.lab-rail--analysis .chart-timeframe button[aria-pressed="true"]')).toHaveText("15m");
+  await expect(page.locator('.lab-rail--strategy .chart-timeframe button[aria-pressed="true"]')).toHaveText("15m");
 
   const mutation = await page.request.post("/api/session", { data: { action: "start", options: { mode: "simulation" } } });
   expect(mutation.status()).toBe(401);
@@ -59,6 +61,50 @@ test("contract focus and Advanced state persist in the URL and support keyboard 
   await expect(page).toHaveURL(/advanced=proofs/);
   await page.keyboard.press("Escape");
   await expect(page).not.toHaveURL(/advanced=/);
+});
+
+test("rail detail drawers are linkable, keyboard-dismissible, and exclusive with Advanced", async ({ page }) => {
+  await page.goto("/?demo=act2&contract=match_1x2&rail=observe&advanced=proofs");
+
+  await expect(page.getByRole("dialog", { name: "Observe details" })).toBeVisible({ timeout: 15_000 });
+  await expect(page).toHaveURL(/rail=observe/);
+  await expect(page).not.toHaveURL(/advanced=/);
+  await expect(page.locator(".advanced-drawer:not(.rail-detail-drawer)")).not.toHaveClass(/is-open/);
+  await expect(page.getByRole("heading", { name: "Market movement" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Full tick diagnostics" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Change ledger" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page).not.toHaveURL(/rail=/);
+
+  await page.getByRole("button", { name: "Expand Interpret details" }).click();
+  const interpret = page.getByRole("dialog", { name: "Interpret details" });
+  await expect(interpret).toBeVisible();
+  await expect(page).toHaveURL(/rail=interpret/);
+  await expect(interpret.getByRole("heading", { name: "Strategy pretext" })).toBeVisible();
+  await expect(interpret.getByRole("heading", { name: "Contract-wise analysis" })).toBeVisible();
+  await expect(interpret.getByRole("heading", { name: "Selected contract path" })).toBeVisible();
+  await expect(interpret.getByRole("heading", { name: "Driver decomposition" })).toBeVisible();
+  await expect(interpret.getByRole("tab")).toHaveCount(0);
+  await expect(interpret.getByRole("button", { name: "15m", exact: true }).first()).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/contract=match_1x2/);
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Expand Act details" }).click();
+  await expect(page.getByRole("dialog", { name: "Act details" })).toBeVisible();
+  await expect(page).toHaveURL(/rail=act/);
+  await expect(page.getByRole("heading", { name: "Decision board" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Fill tape" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Advanced" }).click();
+  await expect(page).toHaveURL(/advanced=proofs/);
+  await expect(page).not.toHaveURL(/rail=/);
+
+  await page.goto("/?rail=interpret");
+  await page.getByRole("button", { name: "Close Interpret details" }).click();
+  await expect(page.locator(".strategy-lab-shell")).toBeVisible();
+  await expect(page).toHaveURL(/lab=live/);
 });
 
 test("mobile is spectator-first without horizontal page overflow", async ({ page }) => {

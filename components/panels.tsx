@@ -299,9 +299,9 @@ export function Arena({
   selectedId?: string | null;
 }) {
   const ranked = [...agents].sort((a, b) => b.metrics.equity - a.metrics.equity);
-  const naive = agents.find((a) => a.id === "momentum_naive");
-  const guarded = agents.find((a) => a.id === "momentum_guarded");
-  const edge = naive && guarded ? guarded.metrics.pnl - naive.metrics.pnl : null;
+  const value = agents.find((a) => a.id === "value");
+  const intensity = agents.find((a) => a.id === "intensity_burst");
+  const edge = value && intensity ? intensity.metrics.pnl - value.metrics.pnl : null;
 
   return (
     <div className="arena-wrap">
@@ -374,14 +374,13 @@ export function Arena({
       <div className="arena-footer mt-3 text-xs text-muted border-t border-line/60 pt-3 px-3 pb-3">
         {edge != null ? (
           <>
-            <span className="text-faint">Sentinel value · </span>
-            Guarded Momentum is{" "}
+            <span className="text-faint">Intensity lift · </span>
+            Intensity Burst is{" "}
             <span className={pnlColor(edge)}>{signFmt(edge)} units</span>{" "}
-            {edge >= 0 ? "ahead of" : "behind"} Naive Momentum — same feed, same params, the difference is
-            listening to the sentinel.
+            {edge >= 0 ? "ahead of" : "behind"} Value — same desk fair, gated by match intensity.
           </>
         ) : (
-          <span className="text-faint">Sentinel A/B comparison appears once both momentum agents trade.</span>
+          <span className="text-faint">Intensity lift appears once Value and Intensity Burst both trade.</span>
         )}
       </div>
     </div>

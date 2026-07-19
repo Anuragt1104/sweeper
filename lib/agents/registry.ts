@@ -3,19 +3,28 @@ import type { Agent } from "@/lib/agents/types";
 import { ValueAgent } from "@/lib/agents/value";
 import { MomentumAgent } from "@/lib/agents/momentum";
 import { MeanReversionAgent } from "@/lib/agents/reversion";
-import { MarketMakerAgent } from "@/lib/agents/maker";
+import { IntensityBurstAgent } from "@/lib/agents/intensity-burst";
 import { HybridThesisAgent } from "@/lib/agents/hybrid-thesis";
 import { CollapseFadeAgent } from "@/lib/agents/collapse-fade";
+import { GoalOverreactionAgent } from "@/lib/agents/goal-overreaction";
+import { ShockFadeAgent } from "@/lib/agents/shock-fade";
+import { StaleReopenAgent } from "@/lib/agents/stale-reopen";
+import { RegimeSwitcherAgent } from "@/lib/agents/regime-switcher";
+import { KellyValueAgent } from "@/lib/agents/kelly-value";
 
 export function buildAgents(): Agent[] {
   return [
     new ValueAgent(),
-    new MomentumAgent(false), // naive
-    new MomentumAgent(true), // guarded
+    new MomentumAgent(true),
     new MeanReversionAgent(),
-    new MarketMakerAgent(),
+    new IntensityBurstAgent(),
     new HybridThesisAgent(),
     new CollapseFadeAgent(),
+    new GoalOverreactionAgent(),
+    new ShockFadeAgent(),
+    new StaleReopenAgent(),
+    new RegimeSwitcherAgent(),
+    new KellyValueAgent(),
   ];
 }
 

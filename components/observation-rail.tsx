@@ -3,12 +3,14 @@
 import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Database, RadioTower } from "lucide-react";
 import type { EngineState } from "@/lib/engine/state";
 import type { StrategyLabView } from "@/lib/strategy-lab/projection";
+import { RailHeading } from "@/components/rail-heading";
+import { feedStreamLabel } from "@/components/format";
 
-export function ObservationRail({ state, view }: { state: EngineState; view: StrategyLabView }) {
+export function ObservationRail({ state, view, onExpand }: { state: EngineState; view: StrategyLabView; onExpand: () => void }) {
   const current = state.current;
   return (
     <section className="lab-rail lab-rail--observation" aria-labelledby="observation-title">
-      <RailHeading number="1" verb="OBSERVE" title="What happened?" description="Facts received from TxLINE." id="observation-title" />
+      <RailHeading number="1" verb="OBSERVE" title="What happened?" description="Facts received from TxLINE." id="observation-title" onExpand={onExpand} />
 
       <div className="observation-score">
         <div>
@@ -30,7 +32,7 @@ export function ObservationRail({ state, view }: { state: EngineState; view: Str
         {view.observation.bookAvailable ? (
           <div className="book-lines">
             {view.observation.book.slice(0, 3).map((line) => (
-              <div className={`book-line book-line--${line.movement}`} key={line.key}>
+              <div className={`book-line book-line--${line.movement}`} key={line.key} title={`${line.label} ${Math.round(line.probability * 100)}% · ${line.decimal.toFixed(2)}`}>
                 <div><strong>{line.label}</strong><span>{line.stale ? "STALE" : line.movement}</span></div>
                 <strong className="tnum">{Math.round(line.probability * 100)}<small>%</small></strong>
                 <span className="tnum">{line.decimal.toFixed(2)} <MovementIcon movement={line.movement} /></span>
@@ -47,7 +49,7 @@ export function ObservationRail({ state, view }: { state: EngineState; view: Str
         <div className="tempo-table" role="table" aria-label="Raw match tempo counts">
           <div role="row" className="tempo-row tempo-row--head"><span>Count</span><b>{state.fixture.homeCode}</b><b>{state.fixture.awayCode}</b></div>
           {view.observation.tempo.map((stat) => (
-            <div role="row" className="tempo-row" key={stat.key}>
+            <div role="row" className="tempo-row" key={stat.key} title={`${stat.label}: ${state.fixture.homeCode} ${stat.home}${stat.suffix ?? ""} · ${state.fixture.awayCode} ${stat.away}${stat.suffix ?? ""}`}>
               <span>{stat.label}</span>
               <b className="tnum">{stat.home}{stat.suffix}<Delta value={stat.homeDelta} /></b>
               <b className="tnum">{stat.away}{stat.suffix}<Delta value={stat.awayDelta} /></b>
@@ -57,27 +59,24 @@ export function ObservationRail({ state, view }: { state: EngineState; view: Str
       </div>
 
       <div className="observation-bottom">
-        <div className="event-tape" aria-label="Latest meaningful observations">
-          {view.observation.events.length ? view.observation.events.map((event) => (
-            <div className="event-pulse" key={event.id}>
-              <i aria-hidden="true" />
-              <time className="tnum">{event.minute.toFixed(0)}′</time>
-              <span><strong>{event.label}</strong><small>{event.source}</small></span>
-            </div>
-          )) : <div className="event-tape__empty">Event tape is quiet</div>}
+        <div className="event-tape" aria-label="Minute timeline of meaningful observations">
+          <div className="event-tape__head">
+            <span>Minute timeline</span>
+            <small>{view.observation.events.length} facts</small>
+          </div>
+          <div className="event-tape__scroll">
+            {view.observation.events.length ? view.observation.events.slice(0, 6).map((event) => (
+              <div className="event-pulse" key={event.id} title={`${event.minute.toFixed(0)}′ · ${event.label} · ${event.source}`}>
+                <i aria-hidden="true" />
+                <time className="tnum">{event.minute.toFixed(0)}′</time>
+                <span><strong>{event.label}</strong><small>{event.source}</small></span>
+              </div>
+            )) : <div className="event-tape__empty">Event tape is quiet</div>}
+          </div>
         </div>
         <FeedTruth state={state} scoreAge={view.observation.scoreAgeMs} oddsAge={view.observation.oddsAgeMs} />
       </div>
     </section>
-  );
-}
-
-function RailHeading({ number, verb, title, description, id }: { number: string; verb: string; title: string; description: string; id: string }) {
-  return (
-    <header className="rail-heading">
-      <span className="rail-number">{number}</span>
-      <div><span>{verb}</span><h2 id={id}>{title}</h2><p>{description}</p></div>
-    </header>
   );
 }
 
@@ -97,8 +96,8 @@ function FeedTruth({ state, scoreAge, oddsAge }: { state: EngineState; scoreAge:
     <div className="feed-truth">
       <div className="rail-section__head"><span>Feed truth</span><small>{state.feedHealth.status}</small></div>
       <div className="feed-truth__grid">
-        <TruthItem icon={<RadioTower size={13} />} label="Score SSE" value={accepted(state.feedHealth.scoreStreamAccepted, state.provenance)} />
-        <TruthItem icon={<Activity size={13} />} label="Odds SSE" value={accepted(state.feedHealth.oddsStreamAccepted, state.provenance)} />
+        <TruthItem icon={<RadioTower size={13} />} label="Score SSE" value={feedStreamLabel(state.feedHealth.scoreStreamAccepted, state.provenance)} />
+        <TruthItem icon={<Activity size={13} />} label="Odds SSE" value={feedStreamLabel(state.feedHealth.oddsStreamAccepted, state.provenance)} />
         <TruthItem label="Score age" value={age(scoreAge)} />
         <TruthItem label="Odds age" value={age(oddsAge)} />
         <TruthItem label="Sequence" value={state.feedHealth.sequenceGap ? `Gap ${state.feedHealth.sequenceGap.expected}→${state.feedHealth.sequenceGap.received}` : "Continuous"} />
@@ -109,12 +108,7 @@ function FeedTruth({ state, scoreAge, oddsAge }: { state: EngineState; scoreAge:
 }
 
 function TruthItem({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
-  return <div>{icon}<span>{label}</span><strong>{value}</strong></div>;
-}
-
-function accepted(value: boolean, provenance: EngineState["provenance"]): string {
-  if (provenance !== "live") return "N/A · replay";
-  return value ? "Accepted" : "Waiting";
+  return <div title={`${label}: ${value}`}>{icon}<span>{label}</span><strong>{value}</strong></div>;
 }
 
 function age(value: number | null): string {
@@ -122,4 +116,3 @@ function age(value: number | null): string {
   if (value < 1000) return "now";
   return `${Math.round(value / 1000)}s`;
 }
-

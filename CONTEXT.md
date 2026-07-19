@@ -13,7 +13,7 @@ Non-TxLINE match-state enrichment (shots, SOT, attacks, fouls, possession, …) 
 _Avoid_: Tempo strategy, tempo intensity (as a product noun), “shared tempo signal”
 
 **Analysis**:
-A desk-computed view derived from Observations — desk fair, Horizon probabilities, MatchIntensity, regime, contract lenses, Sentinel assessments.
+A desk-computed view derived from Observations — desk fair, Horizon probabilities, MatchIntensity, regime, strategy lenses, Sentinel assessments.
 _Avoid_: signal (alone), shared signals, prediction (unless tied to a Strategy)
 
 **Contract**:

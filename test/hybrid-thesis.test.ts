@@ -57,9 +57,10 @@ function modelFair(home: number, edgeHome = 0.08): DeskModelView {
 }
 
 function withDesk(
-  partial: Omit<DeskSignals, "path" | "model"> & {
+  partial: Omit<DeskSignals, "path" | "model" | "intensity"> & {
     path?: DeskPathFeatures;
     model?: DeskModelView;
+    intensity?: DeskSignals["intensity"];
   },
 ): DeskSignals {
   return {
@@ -69,6 +70,7 @@ function withDesk(
     hybridThesisProb: partial.hybridThesisProb ?? partial.model?.fairHome ?? 0.48,
     pressure: partial.pressure,
     tempoIntensity: partial.tempoIntensity,
+    intensity: partial.intensity ?? null,
   };
 }
 
@@ -255,6 +257,6 @@ test("full run includes Hybrid Thesis in the arena and scorecard", () => {
   const hybrid = state.agents.find((a) => a.id === "hybrid_thesis");
   assert.ok(hybrid, "hybrid_thesis agent present");
   assert.ok(state.scorecard, "scorecard present");
-  assert.equal(typeof state.scorecard.guardedEdge, "number");
+  assert.equal(typeof state.scorecard.intensityEdge, "number");
   assert.ok(state.agents.every((a) => a.lastDecisionKind !== undefined));
 });

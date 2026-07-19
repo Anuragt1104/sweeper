@@ -42,6 +42,6 @@ test("Act II full match: warm, trade through goal, finish at FT", () => {
   assert.ok(sawGoalMinute, "should pass the known goal window");
   assert.ok(sawCollapse, "Horizon should collapse on the Act II goal");
   assert.ok(sawFill, "agents should produce shadow fills across the match");
-  assert.ok(end.agents.length >= 7, "seven-agent arena");
+  assert.ok(end.agents.length >= 11, "eleven-agent arena");
   assert.ok((end.current?.minute ?? 0) >= 90 || end.settlement, "reach FT / settlement");
 });

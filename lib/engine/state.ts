@@ -148,6 +148,27 @@ export interface PositionView {
   unrealized: number;
 }
 
+export interface AgentFillMarker {
+  /** Index into the sampled equity curve (0..curve.length-1). */
+  index: number;
+  minute: number;
+  side: "buy" | "sell";
+  marketType: string;
+  selectionKey: string;
+  size: number;
+  rationale: string;
+}
+
+export interface AgentContractPnL {
+  contract: string;
+  marketType: string;
+  pnl: number;
+  realized: number;
+  unrealized: number;
+  trades: number;
+  exposure: number;
+}
+
 export interface AgentView {
   id: string;
   name: string;
@@ -159,6 +180,12 @@ export interface AgentView {
   lastRationale: string;
   stoodDown: boolean;
   curve: number[];
+  /** Match-minute coordinates aligned one-to-one with the sampled equity curve. */
+  curveMinutes: number[];
+  /** Fill markers remapped onto the sampled curve. */
+  fillMarkers: AgentFillMarker[];
+  /** PnL attribution by fillable market / contract. */
+  contractPnl: AgentContractPnL[];
   lastDecisionKind: "trade" | "stand_down" | "quote" | "hold" | null;
   lastSignalIds: string[];
   drivingInputs: {
@@ -283,6 +310,17 @@ export function sampleCurve(values: number[], n = 60): number[] {
   const stride = (values.length - 1) / (n - 1);
   for (let i = 0; i < n; i++) out.push(round2(values[Math.round(i * stride)]));
   return out;
+}
+
+/**
+ * Map a raw curve index onto a sampled curve index so fill markers stay aligned
+ * after `sampleCurve`.
+ */
+export function remapSampledIndex(rawIndex: number, rawLength: number, sampledLength: number): number {
+  if (sampledLength <= 1 || rawLength <= 1) return 0;
+  if (rawLength <= sampledLength) return Math.max(0, Math.min(sampledLength - 1, rawIndex));
+  const t = rawIndex / (rawLength - 1);
+  return Math.round(t * (sampledLength - 1));
 }
 
 function round2(x: number): number {

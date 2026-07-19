@@ -7,6 +7,7 @@ import { ObservationRail } from "@/components/observation-rail";
 import { AnalysisRail } from "@/components/analysis-rail";
 import { StrategyRail } from "@/components/strategy-rail";
 import { AdvancedDrawer, type AdvancedTab } from "@/components/advanced-drawer";
+import { RailDetailDrawer, type RailId } from "@/components/rail-detail-drawer";
 import { GuidedTour } from "@/components/guided-tour";
 import { useEngineStreamController, type EngineSource } from "@/components/use-engine-stream-controller";
 import { StrategyLabProjection } from "@/lib/strategy-lab/projection";
@@ -14,17 +15,26 @@ import type { OddsViewId } from "@/lib/tempo/types";
 import type { FixtureLite } from "@/components/panels";
 import type { Act2Scene } from "@/lib/demo/director";
 import { projectWatchtower } from "@/lib/health/public-health";
+import { LandingPage } from "@/components/landing-page";
+import { ensureLabSurface } from "@/components/lab-url";
 
 const CONTRACTS: OddsViewId[] = ["match_1x2", "ou_25", "next_score", "corners_ou", "swing"];
 const ADVANCED_TABS: AdvancedTab[] = ["evidence", "markets", "sentinel", "horizon", "proofs", "operator", "research"];
 const DIRECTOR_SCENES: Act2Scene[] = ["overview", "pre_goal", "post_goal", "full_time"];
+const RAIL_IDS: RailId[] = ["observe", "interpret", "act"];
 
 export default function StrategyLabPage() {
   return (
     <Suspense fallback={<LabLoading />}>
-      <StrategyLab />
+      <SweeperPage />
     </Suspense>
   );
+}
+
+function SweeperPage() {
+  const searchParams = useSearchParams();
+  const opensLab = ["lab", "demo", "contract", "advanced", "rail"].some((key) => searchParams.has(key));
+  return opensLab ? <StrategyLab /> : <LandingPage />;
 }
 
 function StrategyLab() {
@@ -34,13 +44,18 @@ function StrategyLab() {
   const requestedAdvanced = searchParams.get("advanced") as AdvancedTab | null;
   const requestedScene = searchParams.get("scene") as Act2Scene | null;
   const presenterMode = searchParams.get("present") === "judge";
+  const requestedRail = searchParams.get("rail") as RailId | null;
+  const initialRail = requestedRail && RAIL_IDS.includes(requestedRail) ? requestedRail : null;
   const [selectedContract, setSelectedContract] = useState<OddsViewId>(
     requestedContract && CONTRACTS.includes(requestedContract) ? requestedContract : "match_1x2",
   );
   const [advancedTab, setAdvancedTab] = useState<AdvancedTab>(
     requestedAdvanced && ADVANCED_TABS.includes(requestedAdvanced) ? requestedAdvanced : "evidence",
   );
-  const [advancedOpen, setAdvancedOpen] = useState(Boolean(requestedAdvanced && ADVANCED_TABS.includes(requestedAdvanced)));
+  const [advancedOpen, setAdvancedOpen] = useState(
+    Boolean(!initialRail && requestedAdvanced && ADVANCED_TABS.includes(requestedAdvanced)),
+  );
+  const [railDetail, setRailDetail] = useState<RailId | null>(initialRail);
   const [fixtures, setFixtures] = useState<FixtureLite[]>([]);
   const [controlKey, setControlKey] = useState("");
   const [tourToken, setTourToken] = useState(0);
@@ -67,8 +82,25 @@ function StrategyLab() {
     const url = new URL(window.location.href);
     if (value) url.searchParams.set(key, value);
     else url.searchParams.delete(key);
+    ensureLabSurface(url);
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
   }, []);
+
+  const persistOverlay = useCallback((rail: RailId | null, advanced: AdvancedTab | null) => {
+    const url = new URL(window.location.href);
+    if (rail) url.searchParams.set("rail", rail);
+    else url.searchParams.delete("rail");
+    if (advanced) url.searchParams.set("advanced", advanced);
+    else url.searchParams.delete("advanced");
+    ensureLabSurface(url);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  }, []);
+
+  useEffect(() => {
+    if (initialRail && requestedAdvanced && ADVANCED_TABS.includes(requestedAdvanced)) {
+      persistOverlay(initialRail, null);
+    }
+  }, [initialRail, persistOverlay, requestedAdvanced]);
 
   const chooseContract = useCallback((contract: OddsViewId) => {
     setSelectedContract(contract);
@@ -78,8 +110,9 @@ function StrategyLab() {
   const openAdvanced = useCallback((tab: AdvancedTab = advancedTab) => {
     setAdvancedTab(tab);
     setAdvancedOpen(true);
-    persistUrl("advanced", tab);
-  }, [advancedTab, persistUrl]);
+    setRailDetail(null);
+    persistOverlay(null, tab);
+  }, [advancedTab, persistOverlay]);
 
   const openEvidence = useCallback((strategyId: string) => {
     setEvidenceStrategy(strategyId);
@@ -108,13 +141,24 @@ function StrategyLab() {
 
   const closeAdvanced = useCallback(() => {
     setAdvancedOpen(false);
-    persistUrl("advanced", null);
-  }, [persistUrl]);
+    persistOverlay(null, null);
+  }, [persistOverlay]);
 
   const chooseAdvanced = useCallback((tab: AdvancedTab) => {
     setAdvancedTab(tab);
-    persistUrl("advanced", tab);
-  }, [persistUrl]);
+    persistOverlay(null, tab);
+  }, [persistOverlay]);
+
+  const openRailDetail = useCallback((rail: RailId) => {
+    setAdvancedOpen(false);
+    setRailDetail(rail);
+    persistOverlay(rail, null);
+  }, [persistOverlay]);
+
+  const closeRailDetail = useCallback(() => {
+    setRailDetail(null);
+    persistOverlay(null, null);
+  }, [persistOverlay]);
 
   function storeControlKey(value: string) {
     setControlKey(value);
@@ -139,9 +183,14 @@ function StrategyLab() {
             <SessionMasthead state={controller.state} source={controller.source} />
             <ContractNavigator contracts={view.contracts} selected={selectedContract} onSelect={chooseContract} />
             <div className="lab-rails">
-              <ObservationRail state={controller.state} view={view} />
-              <AnalysisRail state={controller.state} view={view} />
-              <StrategyRail state={controller.state} view={view} onEvidence={openEvidence} />
+              <ObservationRail state={controller.state} view={view} onExpand={() => openRailDetail("observe")} />
+              <AnalysisRail state={controller.state} view={view} onExpand={() => openRailDetail("interpret")} />
+              <StrategyRail
+                state={controller.state}
+                view={view}
+                onExpand={() => openRailDetail("act")}
+                onEvidence={openEvidence}
+              />
             </div>
           </>
         ) : (
@@ -161,9 +210,9 @@ function StrategyLab() {
         onTab={chooseAdvanced}
         onClose={closeAdvanced}
         onControlKey={storeControlKey}
-        onSelectContract={chooseContract}
         onReplayTour={() => { setTourToken((token) => token + 1); closeAdvanced(); }}
       />
+      <RailDetailDrawer rail={railDetail} state={controller.state} view={view} onClose={closeRailDetail} />
       {controller.state && !presenterMode ? <GuidedTour replayToken={tourToken} /> : null}
       {presenterMode ? (
         <PresenterBar scene={demoScene ?? "overview"} paused={directorPaused} onScene={chooseScene} onPause={() => setDirectorPaused((paused) => !paused)} />

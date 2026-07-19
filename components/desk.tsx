@@ -31,9 +31,19 @@ export function DeskHero({ state }: { state: EngineState }) {
             ▲ {sc.leaderName ?? "Leader"} {signFmt(sc.leaderPnl)}
           </span>
           <span
-            className={`chip text-[11px] ${sc.guardedEdge != null ? pnlColor(sc.guardedEdge) : "invisible"}`}
+            className={`chip text-[11px] ${sc.intensityEdge != null ? pnlColor(sc.intensityEdge) : "invisible"}`}
           >
-            Sentinel edge {signFmt(sc.guardedEdge ?? 0)}
+            Intensity lift {signFmt(sc.intensityEdge ?? 0)}
+          </span>
+          <span
+            className={`chip text-[11px] ${sc.kellyEdge != null ? pnlColor(sc.kellyEdge) : "invisible"}`}
+          >
+            Kelly lift {signFmt(sc.kellyEdge ?? 0)}
+          </span>
+          <span
+            className={`chip text-[11px] ${sc.regimeLift != null ? pnlColor(sc.regimeLift) : "invisible"}`}
+          >
+            Regime lift {signFmt(sc.regimeLift ?? 0)}
           </span>
           <RegimeChip regime={sc.regime} />
           <span className={`chip text-warn text-[11px] ${sc.stoodDownCount > 0 ? "" : "invisible"}`}>

@@ -109,7 +109,15 @@ function edgeFor(
   decision: Decision | undefined,
   deskModel: DeskModelSnapshot | null,
 ): number | null {
-  const deskPriced = strategyId === "value" || strategyId === "maker" || strategyId === "hybrid_thesis";
+  const deskPriced =
+    strategyId === "value" ||
+    strategyId === "intensity_burst" ||
+    strategyId === "hybrid_thesis" ||
+    strategyId === "goal_overreaction" ||
+    strategyId === "shock_fade" ||
+    strategyId === "regime_switcher" ||
+    strategyId === "kelly_value" ||
+    strategyId === "stale_reopen";
   if (!deskPriced || contract !== "match_1x2" || !deskModel?.ready) return null;
   const selection = decision?.orders.find((order) => order.marketType === "match_result")?.selectionKey;
   if (selection === "home" || selection === "draw" || selection === "away") {

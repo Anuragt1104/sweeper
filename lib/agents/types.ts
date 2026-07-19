@@ -16,6 +16,7 @@ import type { TradeReadiness } from "@/lib/engine/state";
 import type { HorizonCollapse, HorizonPublication } from "@/lib/horizon/machine";
 import type { DeskPathFeatures } from "@/lib/agents/desk-features";
 import type { DeskModelView } from "@/lib/desk/compose";
+import type { MatchIntensity } from "@/lib/desk/match-intensity";
 
 /** Desk signals agents may trade on — our models only (no privileged oracle). */
 export interface DeskSignals {
@@ -33,6 +34,8 @@ export interface DeskSignals {
   path: DeskPathFeatures;
   /** Full desk pricing model — sole fair source for agent decisions. */
   model: DeskModelView;
+  /** Match-intensity gate (flurry/cards/red-card) — never used as fair value. */
+  intensity: MatchIntensity | null;
 }
 
 export type Side = "buy" | "sell";

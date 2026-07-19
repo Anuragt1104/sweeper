@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { EngineState } from "@/lib/engine/state";
 import type { PublicHealth } from "@/lib/health/public-health";
 import type { Act2Scene } from "@/lib/demo/director";
+import { ensureLabSurface } from "@/components/lab-url";
 
 export type EngineSource = "live" | "demo";
 export type ViewerConnection = "connecting" | "open" | "stale" | "offline";
@@ -129,6 +130,7 @@ export function useEngineStreamController(
     const url = new URL(window.location.href);
     if (next === "demo") url.searchParams.set("demo", "act2");
     else url.searchParams.delete("demo");
+    ensureLabSurface(url);
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
   }, []);
 

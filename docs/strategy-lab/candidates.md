@@ -1,6 +1,18 @@
 # Phase B Strategy candidates
 
-These are design candidates only. They have no `fillableNow` authority and must not create orders until a defensible fair-value model, execution mapping, and settlement test suite exist.
+These are design candidates only unless noted as shipped. They have no
+`fillableNow` authority until a defensible fair-value model, execution mapping,
+and settlement test suite exist.
+
+## Shipped (from ideation — event / meta desk)
+
+| id | Name | Notes |
+|----|------|-------|
+| `goal_overreaction` | Goal Overreaction | Post-goal cool-off then fade toward desk fair |
+| `shock_fade` | Shock Fade | Red-card + comeback emotion fade |
+| `stale_reopen` | Stale Reopen | Suspend→reopen / stale-clear microstructure fade |
+| `regime_switcher` | Regime Switcher | Calm→Value, normal→Momentum, chaotic→flat |
+| `kelly_value` | Kelly Value | Desk fair + fractional Kelly + DD throttle |
 
 ## Corners Pressure
 
@@ -10,9 +22,7 @@ These are design candidates only. They have no `fillableNow` authority and must 
 
 ## Enrichment Burst
 
-- Reads: MatchIntensity and observed shot/attack bursts.
-- Eligible contracts: Match 1X2 and O/U 2.5.
-- Gate to implementation: prove incremental calibration beyond the existing desk and momentum paths without treating enrichment as settlement truth.
+- Shipped as `intensity_burst` in the live roster. Reads MatchIntensity + tempo accel as a **gate only**; desk-v1 fair remains the sole price. Eligible/fillable: Match 1X2.
 
 ## Swing Guard
 
@@ -20,3 +30,9 @@ These are design candidates only. They have no `fillableNow` authority and must 
 - Eligible contract: Swing.
 - Gate to implementation: define an actual executable Contract rather than treating a derived path alert as a fill market.
 
+## Still design-only (high PnL research)
+
+- **1X2 ↔ O/U Parity Arb** — needs joint λ calibration
+- **Horizon Next-Goal Taker** — needs `next_score` fillable path
+- **xG / Shot Residual** — process λ from tempo (careful: enrichment ≠ settlement)
+- **Scoreless Grind (Under Lock)** — needs O/U fair model
