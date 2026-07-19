@@ -208,6 +208,7 @@ function StrategyLab() {
         source={controller.source}
         evidenceStrategy={evidenceStrategy}
         onTab={chooseAdvanced}
+        onSelectContract={chooseContract}
         onClose={closeAdvanced}
         onControlKey={storeControlKey}
         onReplayTour={() => { setTourToken((token) => token + 1); closeAdvanced(); }}

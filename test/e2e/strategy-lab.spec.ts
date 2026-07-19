@@ -4,11 +4,11 @@ test("Strategy Lab renders the complete mental model for a spectator", async ({ 
   await page.goto("/?demo=act2&contract=match_1x2");
   await expect(page.getByRole("heading", { name: "What happened?" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "What does the desk infer?" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "What will each strategy do?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Who is winning — and what will they do?" })).toBeVisible();
   await expect(page.getByText("REPLAY", { exact: true })).toBeVisible();
   await expect(page.getByText("SIMULATED", { exact: true })).toBeVisible();
   await expect(page.getByText(/^Spectator$/i)).toBeVisible();
-  await expect(page.locator(".stance-row")).toHaveCount(7);
+  await expect(page.locator(".stance-row")).toHaveCount(11);
   await expect(page.locator('.lab-rail--analysis .chart-timeframe button[aria-pressed="true"]')).toHaveText("15m");
   await expect(page.locator('.lab-rail--strategy .chart-timeframe button[aria-pressed="true"]')).toHaveText("15m");
 
@@ -19,7 +19,7 @@ test("Strategy Lab renders the complete mental model for a spectator", async ({ 
 
 test("operator can start simulation from the linkable Advanced workspace", async ({ page }) => {
   await page.goto("/?advanced=operator");
-  await expect(page.locator(".advanced-drawer")).toHaveClass(/is-open/);
+  await expect(page.getByRole("dialog", { name: "Advanced workspace" })).toHaveClass(/is-open/);
   await page.getByPlaceholder("shared control key").fill("e2e-control");
   await page.locator("select").filter({ has: page.locator('option[value="live"]') }).selectOption("simulation");
   await page.getByRole("button", { name: /Start/ }).click();
@@ -114,11 +114,11 @@ test("mobile is spectator-first without horizontal page overflow", async ({ page
   expect(dimensions.body).toBe(dimensions.viewport);
   await expect(page.getByRole("heading", { name: "What happened?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "What does the desk infer?" })).toBeAttached();
-  await expect(page.getByRole("heading", { name: "What will each strategy do?" })).toBeAttached();
+  await expect(page.getByRole("heading", { name: "Who is winning — and what will they do?" })).toBeAttached();
 });
 
 test("Live Watchtower separates viewer connectivity from upstream fixture flow", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/?lab=live");
   await expect(page.getByRole("heading", { name: /Waiting for the next covered fixture|Preparing fixture/ })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(/VIEWER STREAM (OPEN|CONNECTING)/)).toBeVisible();
   await expect(page.getByText(/NO ACTIVE COVERED FIXTURE|UPSTREAM (CONNECTING|DEGRADED|OFFLINE)/)).toBeVisible();
