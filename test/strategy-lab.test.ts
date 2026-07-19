@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { StrategyRail } from "@/components/strategy-rail";
 import type { Decision } from "@/lib/agents/types";
 import type { AgentView, TradeReadiness } from "@/lib/engine/state";
 import { emptyDeskModel } from "@/lib/desk/empty";
@@ -163,6 +166,11 @@ test("StrategyLabProjection accepts persisted agent snapshots created before cha
     delete (legacyAgent as Partial<AgentView>).curveMinutes;
     delete (legacyAgent as Partial<AgentView>).contractPnl;
   }
+  const legacyScorecard = legacyState.scorecard as unknown as Record<string, unknown>;
+  for (const field of [
+    "goalOverreactionTrades", "goalOverreactionPnl", "shockFadeTrades", "shockFadePnl",
+    "staleReopenTrades", "staleReopenPnl",
+  ]) delete legacyScorecard[field];
 
   const projected = (["match_1x2", "ou_25", "next_score", "corners_ou", "swing"] as const)
     .map((contract) => StrategyLabProjection.project(legacyState, contract));
@@ -170,4 +178,11 @@ test("StrategyLabProjection accepts persisted agent snapshots created before cha
   assert.ok(projected.every((view) => view.strategy.rows.length === 11));
   assert.ok(projected.every((view) => view.analysis.chart.markers.filter((marker) => marker.kind === "fill").length === 0));
   assert.ok(projected.every((view) => view.research.rows.every((row) => row.contractPnl === 0)));
+  (globalThis as unknown as { React: typeof React }).React = React;
+  assert.match(renderToString(React.createElement(StrategyRail, {
+    state: legacyState,
+    view: projected[0],
+    onExpand: () => undefined,
+    onEvidence: () => undefined,
+  })), /Session scoreboard/);
 });

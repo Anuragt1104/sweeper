@@ -194,7 +194,7 @@ export function StrategyRail({
   );
 }
 
-function EventChip({ label, trades, pnl }: { label: string; trades: number; pnl: number }) {
+function EventChip({ label, trades = 0, pnl = 0 }: { label: string; trades?: number; pnl?: number }) {
   return (
     <div className="event-chip">
       <span>{label}</span>
