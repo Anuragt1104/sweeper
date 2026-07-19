@@ -24,7 +24,7 @@ function main() {
   const ranked = [...totals.entries()].sort((a, b) => b[1].pnl - a[1].pnl);
   console.log(`\nSweeper agent eval · ${SEEDS.length} seeds\n`);
   console.log("  rank  agent                 meanPnL   meanTrades");
-  ranked.forEach(([id, v], i) => {
+  ranked.forEach(([, v], i) => {
     const meanPnl = v.pnl / SEEDS.length;
     const meanTrades = v.trades / SEEDS.length;
     console.log(

@@ -66,6 +66,7 @@ import { DESK_WEIGHTS } from "@/lib/desk/weights";
 import { emptyDeskModel } from "@/lib/desk/empty";
 import { snapshotDeskModel } from "@/lib/desk/contract-deck";
 import { computeMatchIntensity, emptyMatchIntensity, type MatchIntensity } from "@/lib/desk/match-intensity";
+import { projectStrategyStances } from "@/lib/strategy-lab/stances";
 
 export class SweeperEngine {
   readonly sessionId: string;
@@ -581,6 +582,12 @@ export class SweeperEngine {
     const deskPath = this.toDeskPathView(this.lastPath);
     const deskModel = snapshotDeskModel(this.lastModel);
     const matchIntensity = this.lastIntensity;
+    const strategyStances = projectStrategyStances(
+      agents,
+      this.lastDecision,
+      this.tradeReadiness,
+      deskModel,
+    );
 
     const ledgerRecent: LedgerView[] = this.ledger.recent(40).map((r) => ({
       seq: r.seq,
@@ -622,6 +629,7 @@ export class SweeperEngine {
       signals: this.signals.slice(-40).reverse(),
       signalCounts: this.signalCounts,
       agents,
+      strategyStances,
       leader,
       scorecard,
       deskPath,

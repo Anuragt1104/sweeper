@@ -44,7 +44,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - name: Secret scan
         run: |
-          if git grep -nE 'txoracle_api_[A-Za-z0-9_-]{16,}|SOLANA_ANCHOR_SECRET_KEY=.+|DATABASE_URL=postgres' -- ':!.env.example' ':!docs/**' ':!SUBMISSION.md'; then
+          if git grep -nE 'txoracle_api_[A-Za-z0-9_-]{16,}|SOLANA_ANCHOR_SECRET_KEY=.+|DATABASE_URL=postgres' -- ':!.env.example' ':!docs/**' ':!SUBMISSION.md' ':!.github/workflows/**'; then
             echo "Potential secret material found in the repository" >&2
             exit 1
           fi

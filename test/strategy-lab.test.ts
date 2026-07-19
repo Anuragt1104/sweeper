@@ -1,0 +1,98 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import type { Decision } from "@/lib/agents/types";
+import type { AgentView, TradeReadiness } from "@/lib/engine/state";
+import { emptyDeskModel } from "@/lib/desk/empty";
+import { snapshotDeskModel } from "@/lib/desk/contract-deck";
+import { runHeadless } from "@/lib/runner/run";
+import { STRATEGY_DESIGNS } from "@/lib/strategy-lab/designs";
+import { projectStrategyStances } from "@/lib/strategy-lab/stances";
+import { StrategyLabProjection } from "@/lib/strategy-lab/projection";
+
+const readiness: TradeReadiness = {
+  ready: true,
+  reasons: [],
+  checkedAtMs: 1,
+  scoreAgeMs: 0,
+  oddsAgeMs: 0,
+};
+
+function agent(id: string, stoodDown = false): AgentView {
+  const design = STRATEGY_DESIGNS.find((candidate) => candidate.id === id)!;
+  return {
+    id,
+    name: design.name,
+    kind: id,
+    blurb: design.stanceRule,
+    mode: id === "maker" ? "maker" : "taker",
+    metrics: { agentId: id, equity: 1000, pnl: 0, roi: 0, realized: 0, unrealized: 0, trades: 0, turnover: 0, hitRate: 0, maxDrawdown: 0, exposure: 0 },
+    positions: [],
+    lastRationale: stoodDown ? "Quality gate active" : "No trigger",
+    stoodDown,
+    curve: [],
+    lastDecisionKind: stoodDown ? "stand_down" : "hold",
+    lastSignalIds: [],
+    drivingInputs: null,
+  };
+}
+
+const deskModel = snapshotDeskModel(emptyDeskModel({
+  ready: true,
+  fair1x2: { home: 0.5, draw: 0.27, away: 0.23 },
+  edgeVsObs: { home: 0.04, draw: -0.01, away: -0.03 },
+  detail: "test",
+}));
+
+test("the canonical roster contains seven ordered, uniquely identified strategy designs", () => {
+  assert.equal(STRATEGY_DESIGNS.length, 7);
+  assert.deepEqual(STRATEGY_DESIGNS.map((design) => design.displayOrder), [0, 1, 2, 3, 4, 5, 6]);
+  assert.equal(new Set(STRATEGY_DESIGNS.map((design) => design.id)).size, 7);
+  assert.ok(STRATEGY_DESIGNS.every((design) => design.color && design.stanceRule && design.standDownWhen.length));
+});
+
+test("stance projection covers every state without granting fills outside fillableNow", () => {
+  const agents = STRATEGY_DESIGNS.map((design) => agent(design.id, design.id === "momentum_guarded"));
+  const decisions = new Map<string, Decision>([
+    ["value", {
+      agentId: "value", seq: 1, tsMs: 1, quotes: [], rationale: "buy home",
+      orders: [{ agentId: "value", fixtureId: "f", marketType: "match_result", selectionKey: "home", selId: "match_result:home", side: "buy", price: 0.46, size: 12, seq: 1, tsMs: 1, rationale: "buy home on 4pp edge" }],
+    }],
+    ["maker", {
+      agentId: "maker", seq: 1, tsMs: 1, orders: [], rationale: "quote around fair",
+      quotes: [{ agentId: "maker", marketType: "match_result", selectionKey: "home", selId: "match_result:home", bid: 0.48, ask: 0.52, size: 6 }],
+    }],
+  ]);
+  const stances = projectStrategyStances(agents, decisions, readiness, deskModel);
+  assert.equal(stances.length, 35);
+  assert.equal(stances.find((stance) => stance.agentId === "value" && stance.contract === "match_1x2")?.kind, "trade");
+  assert.equal(stances.find((stance) => stance.agentId === "maker" && stance.contract === "match_1x2")?.kind, "quote");
+  assert.equal(stances.find((stance) => stance.agentId === "momentum_guarded" && stance.contract === "match_1x2")?.kind, "stand_down");
+  assert.equal(stances.find((stance) => stance.agentId === "reversion" && stance.contract === "ou_25")?.kind, "flat");
+  assert.equal(stances.find((stance) => stance.agentId === "reversion" && stance.contract === "match_1x2")?.edgeVsBook, null);
+  assert.equal(stances.find((stance) => stance.agentId === "value" && stance.contract === "match_1x2")?.edgeVsBook, 0.04);
+  assert.equal(stances.find((stance) => stance.agentId === "hybrid_thesis" && stance.contract === "next_score")?.kind, "no_model");
+  assert.equal(stances.find((stance) => stance.agentId === "value" && stance.contract === "corners_ou")?.kind, "ineligible");
+
+  for (const stance of stances.filter((candidate) => candidate.kind === "trade" || candidate.kind === "quote")) {
+    const design = STRATEGY_DESIGNS.find((candidate) => candidate.id === stance.agentId)!;
+    assert.ok(design.fillableNow.includes(stance.contract as never));
+  }
+});
+
+test("StrategyLabProjection atomically maps one contract into Observation, Analysis, and seven stances", () => {
+  const { state } = runHeadless({ seed: 7 });
+  const match = StrategyLabProjection.project(state, "match_1x2");
+  assert.deepEqual(match.contracts.map((contract) => contract.id), ["match_1x2", "ou_25", "next_score", "corners_ou", "swing"]);
+  assert.equal(match.analysis.deck.viewId, "match_1x2");
+  assert.equal(match.analysis.deck.source, "desk_1x2");
+  assert.ok(match.observation.book.length === 3);
+  assert.equal(match.strategy.rows.length, 7);
+
+  const horizon = StrategyLabProjection.project(state, "next_score");
+  assert.equal(horizon.analysis.deck.source, "horizon");
+  assert.equal(horizon.observation.bookAvailable, false);
+  assert.ok(horizon.strategy.rows.some((row) => row.stance.kind === "no_model"));
+
+  const corners = StrategyLabProjection.project(state, "corners_ou");
+  assert.match(corners.analysis.pricingBoundary ?? "", /NO PRICING MODEL|NO MARKET/);
+});

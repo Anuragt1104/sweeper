@@ -13,8 +13,8 @@ Access must remain reachable through **July 19, 2026 23:59 UTC**.
 ## What judges see (no operator key)
 
 1. Open the Railway URL.
-2. Confirm spectator banner: live/recorded provenance, **SHADOW** execution, supervisor fixture queue.
-3. Watch **Agent Arena** + **Causal rail** update without authenticating (Sentinel edge, fills, stand-downs).
+2. Confirm command-bar provenance (`LIVE`/`DEMO`) and **SHADOW**/`SIMULATED` execution.
+3. Read the complete contract story above the fold: **Observation → Analysis → Strategy**. All seven stances explain trades, quotes, flat positions, stand-downs, ineligibility, and absent models.
 4. Optional deep links:
    - `/?demo=act2` — full-match Act II demo (kickoff→FT · goal ~41′ · agents + Horizon collapse)
    - Recorded-live replay from `/api/recordings` when a session exists
@@ -34,11 +34,11 @@ Mutations use `SWEEPER_CONTROL_KEY` via `X-Control-Key`. Rate limit: 10/min/IP.
 
 ## Video script (60–90s)
 
-1. **0–10s** — Open production URL; show LIVE / SHADOW badges and fixture name.
-2. **10–35s** — Agent Arena race + Sentinel edge chip; click an agent, show rationale / driving inputs.
-3. **35–55s** — Causal rail: tick → decision → shadow fill (Merkle root visible).
-4. **55–70s** — Compact Horizon THESIS/ACTION; open Advanced for settlement / proof if available.
-5. **70–90s** — Cut to `/?demo=act2`; Argentina goal ~41′ → collapse + arena reaction.
+1. **0–10s** — Open production; show fixture, provenance, upstream acceptance, and execution mode.
+2. **10–30s** — Point left-to-right: received facts, desk fair versus book, then seven contract-specific stances.
+3. **30–45s** — Select Corners to show the honest `NO PRICING MODEL` boundary; return to Match 1X2.
+4. **45–65s** — Cut to `/?demo=act2&contract=match_1x2`; Argentina goal ~41′ → Observation shock → Horizon collapse → Strategy/Arena response.
+5. **65–90s** — Open `?advanced=proofs`, verify a ledger record, then close with Escape.
 
 Upload the recording to the hackathon portal; leave the public link here when available:
 
@@ -50,10 +50,10 @@ VIDEO_URL=
 
 Place under `submission/` (committed) once captured from Railway or local Demo:
 
-- `submission/01-desk-arena.png`
-- `submission/02-causal-fill.png`
-- `submission/03-horizon-collapse.png`
-- `submission/04-settlement-proof.png`
+- `submission/01-desk-arena.png` — complete three-rail Strategy Lab
+- `submission/02-causal-fill.png` — Next score Analysis with explicit Strategy model boundaries
+- `submission/03-horizon-collapse.png` — 41′ goal shock, collapse, stances, and PnL
+- `submission/04-settlement-proof.png` — URL-linked Advanced proof workspace
 
 ## Release gates
 
@@ -64,7 +64,8 @@ Place under `submission/` (committed) once captured from Railway or local Demo:
 - [x] Public SSE / health / rate limits / spectator UI
 - [x] Docker + Railway config + CI
 - [x] Railway one-replica deploy with managed Postgres (`https://sweeper-production-0ef9.up.railway.app`)
-- [x] Agent Arena Desk hero + Hybrid Thesis agent + desk scorecard
+- [x] Strategy Lab hero + canonical seven-strategy stance registry + compact Arena scoreboard
+- [x] Keyboard/mobile/accessibility pass + Advanced workspace + regenerated screenshots
 - [ ] Rotated TxLINE token provisioned on Railway only (current deploy uses local token — rotate ASAP)
 - [ ] Preflight + soak against production URL
 - [ ] Video uploaded

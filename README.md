@@ -1,8 +1,8 @@
 # Sweeper × N+1 Machine
 
-Sweeper is an **autonomous multi-agent trading desk** on TxLINE. Six strategies share one feed; Sentinel gates toxic flow; Horizon + Tempo · Odds · Hybrid supply next-event edge; every decision is Merkle-auditable; portfolios race live in shadow/paper mode.
+Sweeper is an **autonomous seven-strategy trading lab** on TxLINE. It makes the complete decision chain visible: source facts become desk analysis, analysis becomes a contract-specific Strategy stance, and every shadow fill remains Merkle-auditable.
 
-**Hero surface:** Agent Arena + Causal rail (tick → signal → decision → fill). Shared signal charts and compact Horizon sit underneath. Live means TxLINE mainnet level 12 only. Simulation and recorded-live replay are always labelled. Live execution is shadow-only (no real venue fills).
+**Hero surface:** one contract-focused Strategy Lab with three rails: **Observation → Analysis → Strategy**. Arena is the compact session scoreboard inside Strategy; Causal, full markets, Sentinel, Horizon internals, proofs, operator controls, and the legacy research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
 
 ## Production
 
@@ -10,11 +10,21 @@ Sweeper is an **autonomous multi-agent trading desk** on TxLINE. Six strategies 
 - **Railway (judge target):** https://sweeper-production-0ef9.up.railway.app
 - **Access deadline:** July 19, 2026 23:59 UTC
 
-## Agent Arena
+## Strategy Lab
+
+The five shareable contract views are Match 1X2, O/U 2.5, Next score, Corners O/U, and Swing. Selecting one updates all three rails atomically and persists as `?contract=<id>`.
+
+- **Observation** shows only received score/book/events, raw tempo enrichment counts, and feed truth.
+- **Analysis** shows desk fair, Horizon, quality/regime/readiness, and an explicit `NO PRICING MODEL` boundary where appropriate.
+- **Strategy** shows seven live stances with exact `TRADE`, `QUOTE`, `FLAT`, `STAND DOWN`, `INELIGIBLE`, or `NO MODEL` language, followed by the compact Arena scoreboard.
+
+Strategy names, colors, display order, design metadata, eligibility, and fill authority come from one registry: `lib/strategy-lab/designs.ts`.
+
+### Strategy roster
 
 Roster (same tick, competing PnL):
 
-1. Value — consensus reference deviations  
+1. Value — desk fair versus observed 1X2
 2. Naive Momentum — chases every large move  
 3. Guarded Momentum — Sentinel-confirmed sharp moves only (A/B vs naive)  
 4. Mean Reversion — fades outlier prints  
@@ -32,9 +42,9 @@ Eval across seeds:
 npm run eval:agents
 ```
 
-## Shared signals (Tempo · Odds · Hybrid)
+## Advanced research (legacy Shock Strip)
 
-Minute-aligned charts are **inputs the desk trades on**, not decoration. Spec and handoff:
+The minute-aligned Tempo · Odds · Hybrid strip remains an Advanced research view. These are analysis tracks, not the seven Strategy policies and not the primary product language. Spec and historical handoff:
 
 - [`docs/shock-strip/README.md`](./docs/shock-strip/README.md)
 - [`docs/shock-strip/HANDOFF.md`](./docs/shock-strip/HANDOFF.md)
@@ -55,7 +65,7 @@ npm run dev
 
 Open `http://localhost:3000`. Public viewers need no key. Operators enter the shared key only for mutations.
 
-Deterministic demo (Arena + goal shock ~41′):
+Deterministic demo (three-rail goal shock ~41′):
 
 ```text
 http://localhost:3000/?demo=act2
@@ -125,11 +135,13 @@ TxLINE SSE / recorded / simulation
             ▼
      SweeperEngine.ingest(tick)
         ├─ HorizonMachine
-        ├─ Sentinel + five agents
+        ├─ Sentinel + seven strategies
         ├─ readiness → shadow / simulated exchange
         └─ Merkle ledger → validateStatV2 settlement
             ▼
-     EngineState → SSE → spectator UI
+     EngineState + all-contract StrategyStances
+            ▼
+ StrategyLabProjection → EngineStreamController → spectator UI
 ```
 
 Details: [architecture](docs/ARCHITECTURE.md), [TxLINE endpoints](docs/TXLINE_ENDPOINTS.md), [submission](SUBMISSION.md).

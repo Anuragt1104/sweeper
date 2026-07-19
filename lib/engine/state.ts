@@ -17,6 +17,7 @@ import type { SessionScorecard } from "@/lib/agents/session-scorecard";
 import type { RegimeKind } from "@/lib/agents/regime";
 import type { DeskModelSnapshot } from "@/lib/desk/contract-deck";
 import type { MatchIntensity } from "@/lib/desk/match-intensity";
+import type { StrategyStanceView } from "@/lib/strategy-lab/stances";
 
 /** Serializable desk path snapshot for Arena UI (judges see the time series). */
 export interface DeskPathView {
@@ -226,6 +227,8 @@ export interface EngineState {
   signals: Signal[];
   signalCounts: Record<SignalKind, number>;
   agents: AgentView[];
+  /** Contract-specific stance for every registered strategy. */
+  strategyStances: StrategyStanceView[];
   leader: string | null;
   /** Arena hero summary — Sentinel edge, Hybrid Thesis, Horizon hits. */
   scorecard: SessionScorecard;

@@ -30,6 +30,7 @@
     "@coral-xyz/anchor": "^0.32.1",
     "@noble/hashes": "^1.5.0",
     "@solana/web3.js": "^1.95.4",
+    "lucide-react": "^0.468.0",
     "next": "15.5.20",
     "pg": "^8.22.0",
     "react": "19.2.7",

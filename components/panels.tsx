@@ -14,16 +14,10 @@ import {
   SIGNAL_LABEL,
 } from "@/components/format";
 import { EquityChart, QualityGauge, Sparkline } from "@/components/charts";
+import { STRATEGY_COLORS } from "@/lib/strategy-lab/designs";
 
-export const AGENT_COLOR: Record<string, string> = {
-  value: "var(--color-cyan)",
-  momentum_naive: "var(--color-down)",
-  momentum_guarded: "var(--color-brand)",
-  reversion: "var(--color-info)",
-  maker: "var(--color-warn)",
-  hybrid_thesis: "#e8c36a",
-  collapse_fade: "#fb9b6f",
-};
+/** @deprecated Import STRATEGY_COLORS from the roster for new UI. */
+export const AGENT_COLOR = STRATEGY_COLORS;
 
 export interface FixtureLite {
   id: string;

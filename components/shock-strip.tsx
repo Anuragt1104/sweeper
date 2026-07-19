@@ -239,23 +239,10 @@ function LensChart({
     return projectOddsLensForecast(lens.id, last, oddsPoint, Math.max(minute, last.minute));
   }, [lens.id, last, horizon, oddsPoint, minute]);
 
-  const tempoLine = useMemo(
-    () => polyline01(lens.series.map((p) => ({ minute: p.minute, value: p.tempoIntensity })), x, y),
-    [lens.series, plotH],
-  );
-  const oddsLine = useMemo(
-    () => polyline01(lens.series.map((p) => ({ minute: p.minute, value: p.oddsProb })), x, y),
-    [lens.series, plotH],
-  );
-  const hybridLine = useMemo(
-    () => polyline01(lens.series.map((p) => ({ minute: p.minute, value: p.hybridProb })), x, y),
-    [lens.series, plotH],
-  );
-
-  const hybridForecastLine = useMemo(
-    () => polyline01(forecast.map((p) => ({ minute: p.minute, value: p.hybrid })), x, y),
-    [forecast, plotH],
-  );
+  const tempoLine = polyline01(lens.series.map((p) => ({ minute: p.minute, value: p.tempoIntensity })), x, y);
+  const oddsLine = polyline01(lens.series.map((p) => ({ minute: p.minute, value: p.oddsProb })), x, y);
+  const hybridLine = polyline01(lens.series.map((p) => ({ minute: p.minute, value: p.hybridProb })), x, y);
+  const hybridForecastLine = polyline01(forecast.map((p) => ({ minute: p.minute, value: p.hybrid })), x, y);
 
   const pathKeys = useMemo(() => {
     if (forecast.length === 0) return [] as string[];
@@ -263,8 +250,7 @@ function LensChart({
     return Object.keys(forecast[0].paths).slice(0, 4);
   }, [forecast, lens.id]);
 
-  const pathLines = useMemo(() => {
-    return pathKeys.map((key) => ({
+  const pathLines = pathKeys.map((key) => ({
       key,
       points: polyline01(
         forecast.map((p) => ({ minute: p.minute, value: p.paths[key] ?? 0 })),
@@ -280,7 +266,6 @@ function LensChart({
           ? HORIZON_PATH_LABELS[key as keyof typeof HORIZON_PATH_LABELS]
           : key,
     }));
-  }, [forecast, pathKeys, lens.id, plotH]);
 
   function onPointerMove(e: ReactPointerEvent<SVGSVGElement>) {
     const svg = e.currentTarget;

@@ -3,6 +3,7 @@
  * Honest map for UI — agents do not invent fills on unused contracts.
  */
 import type { OddsViewId } from "@/lib/tempo/types";
+import { STRATEGY_DESIGNS } from "@/lib/strategy-lab/designs";
 
 export type StrategyContractRole = "trades" | "signal_only" | "unused";
 
@@ -18,64 +19,16 @@ export interface StrategyContractBinding {
   blurb: string;
 }
 
-export const STRATEGY_CONTRACT_BINDINGS: StrategyContractBinding[] = [
-  {
-    agentId: "value",
-    name: "Value",
-    trades: ["match_1x2"],
-    signalUses: [],
-    signals: ["desk fair 1X2", "obs book", "path", "regime"],
-    blurb: "Buys 1X2 when desk fair beats the book.",
-  },
-  {
-    agentId: "momentum_naive",
-    name: "Naive Momentum",
-    trades: ["match_1x2", "ou_25"],
-    signalUses: [],
-    signals: ["odds path z/ret", "Sentinel sharp_move"],
-    blurb: "Follows short-horizon odds momentum on 1X2 and O/U.",
-  },
-  {
-    agentId: "momentum_guarded",
-    name: "Guarded Momentum",
-    trades: ["match_1x2", "ou_25"],
-    signalUses: [],
-    signals: ["odds path z/ret", "Sentinel quality", "regime"],
-    blurb: "Momentum with market-quality stand-down.",
-  },
-  {
-    agentId: "reversion",
-    name: "Mean Reversion",
-    trades: ["match_1x2", "ou_25"],
-    signalUses: [],
-    signals: ["odds path z/ret", "Sentinel"],
-    blurb: "Fades stretched odds moves on 1X2 and O/U.",
-  },
-  {
-    agentId: "maker",
-    name: "Market Maker",
-    trades: ["match_1x2"],
-    signalUses: [],
-    signals: ["desk fair 1X2", "path vol"],
-    blurb: "Quotes 1X2 around desk fair.",
-  },
-  {
-    agentId: "hybrid_thesis",
-    name: "Hybrid Thesis",
-    trades: ["match_1x2"],
-    signalUses: ["next_score"],
-    signals: ["desk fair 1X2", "Horizon hazard", "tempo", "odds velocity", "pressure", "regime"],
-    blurb: "Trades 1X2 vs desk-v1; Horizon is a mapped signal, not the fill market.",
-  },
-  {
-    agentId: "collapse_fade",
-    name: "Collapse Fade",
-    trades: ["match_1x2"],
-    signalUses: ["next_score"],
-    signals: ["Horizon collapse", "obs book"],
-    blurb: "Fades Horizon collapses into 1X2.",
-  },
-];
+export const STRATEGY_CONTRACT_BINDINGS: StrategyContractBinding[] = STRATEGY_DESIGNS.map((design) => ({
+  agentId: design.id,
+  name: design.name,
+  trades: [...design.fillableNow],
+  signalUses: design.eligibleContracts.filter(
+    (contract) => !(design.fillableNow as readonly OddsViewId[]).includes(contract),
+  ),
+  signals: [...design.reads.analysis, ...design.reads.observations],
+  blurb: design.stanceRule,
+}));
 
 export function roleForContract(
   binding: StrategyContractBinding,

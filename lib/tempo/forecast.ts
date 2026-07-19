@@ -8,7 +8,6 @@
  * Other bet lenses: project top market selections with a light tempo/pressure tilt.
  */
 import {
-  HORIZON_OUTCOMES,
   lockBadges,
   type HorizonOutcome,
   type HorizonProbabilities,

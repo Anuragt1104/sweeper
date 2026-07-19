@@ -77,7 +77,7 @@ function buildCumulativePoints(
   const points: Array<{ minute: number; counts: TempoCounts }> = [
     { minute: 0, counts: emptyTempoCounts() },
   ];
-  let counts = emptyTempoCounts();
+  const counts = emptyTempoCounts();
   let possHome = 50;
   for (const e of sorted) {
     switch (e.kind) {

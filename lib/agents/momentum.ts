@@ -66,7 +66,7 @@ export class MomentumAgent implements Agent {
       if (regimeBlock) {
         this.target.clear();
         forceFlat = true;
-        const orders = flattenOrders(this.id, ctx, forceFlat);
+        const orders = flattenOrders(this.id, ctx);
         return {
           agentId: this.id,
           seq: tick.seq,
@@ -187,7 +187,7 @@ export class MomentumAgent implements Agent {
   }
 }
 
-function flattenOrders(agentId: string, ctx: AgentContext, _force: boolean): Order[] {
+function flattenOrders(agentId: string, ctx: AgentContext): Order[] {
   const { tick } = ctx;
   const orders: Order[] = [];
   for (const s of TAKER_SELECTIONS) {

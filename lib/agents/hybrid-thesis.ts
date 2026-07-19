@@ -112,7 +112,7 @@ export class HybridThesisAgent implements Agent {
         : target.key === "away"
           ? model.fair1x2.away
           : model.fair1x2.draw;
-    let edge = fair - obs;
+    const edge = fair - obs;
 
     const path = desk.path;
     if (drive === "goal_home" && (path?.homeRet5 ?? 0) < -0.055) {

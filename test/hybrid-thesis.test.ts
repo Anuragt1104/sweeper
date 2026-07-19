@@ -37,7 +37,6 @@ const emptyPath: DeskPathFeatures = {
 };
 
 function modelFair(home: number, edgeHome = 0.08): DeskModelView {
-  const obsHome = home - edgeHome;
   return emptyDeskModel({
     ready: true,
     fairHome: home,

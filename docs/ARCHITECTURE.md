@@ -7,6 +7,9 @@ The core seam is `SweeperEngine.ingest(tick)`. It contains all deterministic Hor
 - `MarketTickGenerator` drives deterministic simulation and replay.
 - `LiveTickAssembler` hydrates TxLINE score/odds snapshots and combines two independently updating SSE streams plus 30-second heartbeats.
 - `HorizonMachine.processTick` owns probability lookup, smoothing, badge locks, fixed-window lifecycle, collapse history, odds swing, and Machine Ledger metrics.
+- `projectStrategyStances` publishes one honest stance for every registered Strategy × Contract pair while keeping fills constrained to `fillableNow`.
+- `StrategyLabProjection.project(state, contract)` is the browser-independent UI seam for Observation, Analysis, and Strategy.
+- `useEngineStreamController` owns live/demo hydration, SSE lifecycle, stale state, and source provenance.
 
 ```text
 TxLINE mainnet                 deterministic replay
@@ -24,7 +27,13 @@ fixtures/snapshots/SSE         MarketTickGenerator
                        │                   │
                        └──── EngineState ──┘
                                   │
-                      SSE + read-only APIs + UI
+                      SSE + read-only APIs
+                                  │
+                         EngineStreamController
+                                  │
+                         StrategyLabProjection
+                                  │
+                 Observation → Analysis → Strategy UI
 ```
 
 ## Live acceptance

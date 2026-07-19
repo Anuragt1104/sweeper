@@ -1,39 +1,45 @@
-# Tonight demo script
+# Strategy Lab demo script
 
 ## Before sharing
 
-1. Rotate the token pasted in chat and store only its replacement in `.env.local`.
-2. Run `npm test`, `npm run typecheck`, `npm run build`, and `npm run preflight:live`.
-3. Start `npm run dev:live`, then `npm run share:live` in a second terminal.
-4. Open `/api/health` and the public URL from a second device. Confirm both score/odds streams are accepted and the UI says LIVE. A healthy feed with no 1X2 must say agents are standing down.
+1. Rotate any token shared outside the password manager and store only its replacement in `.env.local` or the deployment secret store.
+2. Run `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, and `npm run preflight:live`.
+3. Open `/api/health` and the public URL from a second device. Confirm both upstream streams are accepted before calling the session LIVE.
+4. Use 1440×900 for the judge walkthrough. Keep Advanced closed at the start.
 
-## Act I — live Agent Desk
+## Act I — the ten-second mental model
 
-Open the public console. Lead with **Agent Arena**: seven strategies, path sparklines / regime chip, leader chip, Sentinel edge (Guarded − Naive), selected agent rationale / driving inputs (Horizon thesis, Hybrid, path returns, Sentinel).
+Open the Strategy Lab on Match 1X2 and say:
 
-Point at the **Causal rail**: tick → Sentinel → decision → shadow fill → Horizon → leader PnL, with Merkle root.
+> “Sweeper keeps three things separate. The left rail is what arrived. The middle is what our desk inferred. The right is what every strategy will actually do on this contract.”
 
-Then show compact Horizon (THESIS/ACTION) and Shared signals (Tempo · Odds · Hybrid) as the inputs agents read.
+Point in this order:
 
-Open Advanced for Odds board, Sentinel feed, click-to-verify audit proofs, and settlement.
+1. **Observation** — score/book/events, raw enrichment counts, and exact feed acceptance. No desk prediction is mixed into this rail.
+2. **Analysis** — observed 1X2 against desk-v1 fair. The two markers and signed gap make the claimed edge auditable.
+3. **Strategy** — all seven stances are visible at once. Every trade, quote, stand-down, ineligible contract, and absent model has a reason.
+4. **Provenance** — Live/Replay plus SHADOW/SIMULATED remain visible in the command bar and masthead.
 
-## Act II — guaranteed money shot
+Select Corners O/U to show the `NO PRICING MODEL` boundary, then return to Match 1X2. Explain that eligibility never grants fill authority.
+
+## Act II — deterministic money shot
 
 Open:
 
 ```text
-/?demo=act2
+/?demo=act2&contract=match_1x2
 ```
 
-No operator key required. Stream runs the **full match** (kickoff → FT) with adaptive pacing — brisk until the known goal window, slower around ~41′, then steady to full time. Tiny warm-start seeds path features only. Watch:
+No operator key is required. The masthead says REPLAY and the command bar says SIMULATED. Watch the three rails in order around the known 41′ Argentina goal:
 
-1. Arena PnL / sparklines move  
-2. Causal rail lights fills and decisions  
-3. At ~41′ Argentina goal → Horizon collapse (SURPRISE / THESIS DEAD as applicable)  
-4. Hybrid Thesis cooldown / stand-down rationale after collapse  
+1. Observation records the score/event shock and the observed book reprices.
+2. Analysis moves the desk-versus-book gap and manifests the 400ms Horizon collapse.
+3. Strategy stances/quotes change; the compact Arena updates fills and PnL.
 
-Header remains DEMO, never LIVE. Optional: Advanced → audit ledger → click `horizon_collapse` for inclusion proof. `GET /api/horizon?demo=act2` mirrors the stream.
+Then select Next score. Horizon becomes the Analysis model while Strategy rows honestly say `NO MODEL` or `INELIGIBLE` where no direct fill path exists.
+
+Open `?advanced=proofs` to show the Merkle ledger, click a Horizon collapse for its inclusion proof, then close the drawer with Escape. The full Causal trace and legacy Shock Strip remain available in Advanced without competing with the primary story.
 
 ## Outage story
 
-If TxLINE is unavailable, leave the live state visibly OFFLINE/DEGRADED. Switch deliberately to `/?demo=act2`; do not claim it is live and do not let the server substitute it automatically.
+If TxLINE is unavailable, leave Live visibly OFFLINE or DEGRADED. Switch deliberately to Demo; never claim replay is current live data and never let the server silently substitute simulation.
