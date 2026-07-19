@@ -191,7 +191,12 @@ export class EngineManager {
       if (this.engine !== engine) return;
       const stored = await this.store.appendTick(engine.sessionId, tick, processedAtMs);
       if (!stored) return;
+      const firstLedgerSeq = engine.getLedger().size();
       engine.ingest(tick, processedAtMs);
+      await this.store.appendLedgerRecords(
+        engine.sessionId,
+        engine.getLedger().entriesSince(firstLedgerSeq),
+      );
       const state = engine.getState();
       await this.store.markTickProcessed(stored.id, state);
       await this.store.updateSession(this.sessionRecord(
@@ -307,17 +312,7 @@ export class EngineManager {
       session.sessionId,
     );
     this.engine = engine;
-    const ticks = await this.store.listTicks(session.sessionId);
-    const processed = ticks.filter((tick) => tick.processingStatus === "processed");
-    const pending = ticks.filter((tick) => tick.processingStatus === "pending");
-    for (const stored of processed) engine.ingest(stored.tick, stored.processedAtMs);
-    if (session.ledgerRoot && engine.getState().ledger.root !== session.ledgerRoot) {
-      throw new Error(`Recovery ledger root mismatch for ${session.sessionId}`);
-    }
-    for (const stored of pending) {
-      engine.ingest(stored.tick, stored.processedAtMs);
-      await this.store.markTickProcessed(stored.id, engine.getState());
-    }
+    await recoverTicksIntoEngine(engine, this.store, session);
     await this.store.updateSession(this.sessionRecord(engine, "running"));
     return this.startLive(engine);
   }
@@ -584,6 +579,60 @@ export class EngineManager {
     }));
     // recompute planned windows from a fresh generator view
     return { state, series, windows: replayWindows(fixture, config, opts.scenario) };
+  }
+}
+
+type RecoveryStore = Pick<
+  EventStore,
+  "listTicksPage" | "appendLedgerRecords" | "markTickProcessed"
+>;
+
+type RecoverableEngine = Pick<SweeperEngine, "ingest" | "getLedger" | "getState">;
+
+/**
+ * Rebuild one deterministic engine without materialising an entire session.
+ * Processed rows are verified at their stored boundary; pending rows resume
+ * only after that root matches.
+ */
+export async function recoverTicksIntoEngine(
+  engine: RecoverableEngine,
+  store: RecoveryStore,
+  session: SessionRecord,
+  pageSize = 100,
+): Promise<void> {
+  let afterId: string | null = null;
+  let pendingStarted = false;
+
+  while (true) {
+    const page = await store.listTicksPage(session.sessionId, afterId, pageSize);
+    if (page.length === 0) break;
+    for (const stored of page) {
+      if (stored.processingStatus === "pending" && !pendingStarted) {
+        assertRecoveryRoot(engine, session);
+        pendingStarted = true;
+      } else if (stored.processingStatus === "processed" && pendingStarted) {
+        throw new Error(`Processed tick ${stored.id} follows a pending recovery tick`);
+      }
+
+      const firstLedgerSeq = engine.getLedger().size();
+      engine.ingest(stored.tick, stored.processedAtMs);
+      await store.appendLedgerRecords(
+        session.sessionId,
+        engine.getLedger().entriesSince(firstLedgerSeq),
+      );
+      if (stored.processingStatus === "pending") {
+        await store.markTickProcessed(stored.id, engine.getState());
+      }
+    }
+    afterId = page[page.length - 1].id;
+  }
+
+  if (!pendingStarted) assertRecoveryRoot(engine, session);
+}
+
+function assertRecoveryRoot(engine: RecoverableEngine, session: SessionRecord): void {
+  if (session.ledgerRoot && engine.getLedger().root() !== session.ledgerRoot) {
+    throw new Error(`Recovery ledger root mismatch for ${session.sessionId}`);
   }
 }
 

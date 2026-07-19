@@ -34,13 +34,18 @@ export interface MerkleTree {
 }
 
 export function buildMerkleTree(items: string[]): MerkleTree {
-  if (items.length === 0) {
+  return buildMerkleTreeFromLeafHashes(items.map((item) => bytesToHex(leafHash(item))));
+}
+
+/** Build the exact same tree from already domain-separated SHA-256 leaf hashes. */
+export function buildMerkleTreeFromLeafHashes(leafHashes: string[]): MerkleTree {
+  if (leafHashes.length === 0) {
     const empty = bytesToHex(sha256(utf8ToBytes("EMPTY")));
     return { root: empty, leaves: [], proof: () => [] };
   }
 
-  const leaves = items.map(leafHash);
-  const leafHex = leaves.map(bytesToHex);
+  const leaves = leafHashes.map(hexToBytes);
+  const leafHex = [...leafHashes];
 
   // Build levels bottom-up, duplicating the last node on odd counts.
   const levels: Uint8Array[][] = [leaves];
@@ -84,6 +89,20 @@ export function verifyMerkleProof(
   root: string,
 ): boolean {
   let acc = leafHash(leafData);
+  for (const step of proof) {
+    const sib = hexToBytes(step.hash);
+    acc = step.position === "left" ? hashPair(sib, acc) : hashPair(acc, sib);
+  }
+  return bytesToHex(acc) === root;
+}
+
+/** Verify a proof when only the archived leaf hash is available. */
+export function verifyMerkleProofHash(
+  leafHashHex: string,
+  proof: MerkleProofStep[],
+  root: string,
+): boolean {
+  let acc = hexToBytes(leafHashHex);
   for (const step of proof) {
     const sib = hexToBytes(step.hash);
     acc = step.position === "left" ? hashPair(sib, acc) : hashPair(acc, sib);

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { EngineState, ExecutionMode, RecordingSummary, RunProvenance, StreamCursor } from "@/lib/engine/state";
 import type { EngineConfig } from "@/lib/engine/config";
 import type { MarketTick } from "@/lib/market/ticks";
+import type { LedgerEntry } from "@/lib/proof/ledger";
 
 export interface SessionRecord {
   sessionId: string;
@@ -61,6 +62,10 @@ export interface EventStore {
   appendTick(sessionId: string, tick: MarketTick, processedAtMs: number): Promise<StoredTick | null>;
   markTickProcessed(id: string, state: EngineState): Promise<void>;
   listTicks(sessionId: string): Promise<StoredTick[]>;
+  listTicksPage(sessionId: string, afterId: string | null, limit: number): Promise<StoredTick[]>;
+  appendLedgerRecords(sessionId: string, records: LedgerEntry[]): Promise<void>;
+  loadLedgerRecord(sessionId: string, seq: number): Promise<LedgerEntry | null>;
+  listLedgerLeafHashes(sessionId: string): Promise<string[]>;
   saveCursor(cursor: StreamCursor): Promise<void>;
   loadCursors(fixtureId: string): Promise<StreamCursor[]>;
   saveProofReceipt(receipt: ProofReceiptRecord): Promise<void>;

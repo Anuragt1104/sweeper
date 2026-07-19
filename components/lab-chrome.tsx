@@ -56,7 +56,7 @@ export function LabCommandBar({
 
       <div className="lab-command__right">
         <ConnectionBadge connection={connection} />
-        <span className="mode-badge">{state?.executionMode === "shadow" ? "SHADOW" : "SIMULATED"}</span>
+        <span className="mode-badge">{state ? (state.executionMode === "shadow" ? "SHADOW" : "SIMULATED") : source === "live" ? "NO EXECUTION" : "SIMULATED"}</span>
         <button type="button" className="lab-icon-button" onClick={onAdvanced}>
           <Settings2 size={16} aria-hidden="true" />
           <span>Advanced</span>
@@ -72,7 +72,7 @@ export function LabCommandBar({
 
 function ConnectionBadge({ connection }: { connection: ViewerConnection }) {
   const Icon = connection === "offline" ? WifiOff : Activity;
-  const label = connection === "open" ? "Stream live" : connection === "stale" ? "Stream stale" : connection;
+  const label = connection === "open" ? "Viewer stream open" : connection === "stale" ? "Viewer stream stale" : `Viewer ${connection}`;
   return (
     <span className={`connection-badge connection-badge--${connection}`}>
       <Icon size={14} aria-hidden="true" />

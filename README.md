@@ -2,7 +2,7 @@
 
 Sweeper is an **autonomous seven-strategy trading lab** on TxLINE. It makes the complete decision chain visible: source facts become desk analysis, analysis becomes a contract-specific Strategy stance, and every shadow fill remains Merkle-auditable.
 
-**Hero surface:** one contract-focused Strategy Lab with three rails: **Observation → Analysis → Strategy**. Arena is the compact session scoreboard inside Strategy; Causal, full markets, Sentinel, Horizon internals, proofs, operator controls, and the legacy research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
+**Hero surface:** one contract-focused Strategy Lab with three rails: **Observation → Analysis → Strategy**. Arena is the compact session scoreboard inside Strategy; Evidence, full markets, Sentinel, Horizon internals, proofs, operator controls, and the legacy research strip live in Advanced. Live means TxLINE mainnet level 12 only. Replay/simulation are always labelled, and all execution is shadow/simulated—never a real venue order.
 
 ## Production
 
@@ -42,17 +42,20 @@ Eval across seeds:
 npm run eval:agents
 ```
 
-## Advanced research (legacy Shock Strip)
+## Decision Evidence and Advanced research
+
+The Evidence workspace reconstructs one receipt from observation tick hash → desk snapshot → strategy rule/gates → shadow fill/PnL → Sweeper Merkle inclusion proof. It renders the `SWEEPER DECISION PROOF` separately from the `TXLINE SETTLEMENT GUARD`; neither lane is allowed to imply the other.
+
+Live ledgers retain the latest 256 full records in process plus all compact leaf hashes. Complete records are archived in Postgres, and recovery reads ticks in pages of 100. Simulation/replay retains complete in-memory records for deterministic research.
+
+The legacy Shock Strip remains an Advanced research view.
 
 The minute-aligned Tempo · Odds · Hybrid strip remains an Advanced research view. These are analysis tracks, not the seven Strategy policies and not the primary product language. Spec and historical handoff:
 
 - [`docs/shock-strip/README.md`](./docs/shock-strip/README.md)
 - [`docs/shock-strip/HANDOFF.md`](./docs/shock-strip/HANDOFF.md)
 
-Fixture supervisor queue:
-
-1. France–England `18257865`
-2. Spain–Argentina `18257739`
+Fixture selection is schedule-driven. Completed fixtures are never described as upcoming; the Watchtower reports the actual next eligible fixture or `No active covered fixture`.
 
 ## Run locally in simulation
 
@@ -69,6 +72,15 @@ Deterministic demo (three-rail goal shock ~41′):
 
 ```text
 http://localhost:3000/?demo=act2
+```
+
+Judge-directed scenes (normal public Demo has no presenter controls):
+
+```text
+/?demo=act2&present=judge&scene=overview
+/?demo=act2&present=judge&scene=pre_goal
+/?demo=act2&present=judge&scene=post_goal
+/?demo=act2&present=judge&scene=full_time
 ```
 
 ## Run TxLINE live locally
@@ -109,6 +121,7 @@ Read endpoints are public and `no-store`:
 - `GET /api/horizon`, `/api/fixtures/{id}/horizon`
 - `GET /api/health`, `/api/health/live`, `/api/health/ready`
 - `GET /api/session`, `/api/fixtures`, `/api/proof/{seq}`
+- `GET /api/evidence/decision?source=live|demo&sessionId=...&strategy=...&contract=...&selector=...`
 
 Mutations require `X-Control-Key` and are rate-limited.
 
@@ -137,7 +150,7 @@ TxLINE SSE / recorded / simulation
         ├─ HorizonMachine
         ├─ Sentinel + seven strategies
         ├─ readiness → shadow / simulated exchange
-        └─ Merkle ledger → validateStatV2 settlement
+        └─ bounded Merkle ledger → Postgres archive → validateStatV2 guard
             ▼
      EngineState + all-contract StrategyStances
             ▼

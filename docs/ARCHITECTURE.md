@@ -10,6 +10,7 @@ The core seam is `SweeperEngine.ingest(tick)`. It contains all deterministic Hor
 - `projectStrategyStances` publishes one honest stance for every registered Strategy × Contract pair while keeping fills constrained to `fillableNow`.
 - `StrategyLabProjection.project(state, contract)` is the browser-independent UI seam for Observation, Analysis, and Strategy.
 - `useEngineStreamController` owns live/demo hydration, SSE lifecycle, stale state, and source provenance.
+- `DecisionEvidence.build` reconstructs an exact observation → analysis → decision → fill receipt and never merges the Sweeper decision proof with the TxLINE settlement guard.
 
 ```text
 TxLINE mainnet                 deterministic replay
@@ -56,6 +57,12 @@ The first material event within the current fixed Horizon collapses it. A transi
 ## Proof chain
 
 Every tick is a canonical SHA-256 Merkle leaf. Horizon open, refresh, and collapse records carry the triggering tick hash in `reactedToHash`, just like Sentinel signals, decisions, and fills. Full-time live settlement remains on hold until the final `game_finalised` sequence and TxLINE stat proof are validated. Horizon collapses do not depend on final settlement.
+
+Live mode retains only the latest 256 complete ledger records in the process while keeping all compact pre-hashed leaves. The Merkle root and inclusion paths are identical to the complete ledger. Full records are batch-archived in `sweeper_ledger_records`; historical proofs join the archived canonical record with the ordered compact leaf hashes. Simulation and replay retain complete records in memory.
+
+Recovery reads `sweeper_ingested_ticks` in pages of 100, reconstructs records through normal `ingest`, backfills missing ledger rows idempotently, and verifies the stored root before processing any pending tick. A session older than six hours without `game_finalised` is failed rather than resumed or settled.
+
+The public Live Watchtower distinguishes browser delivery (`VIEWER STREAM OPEN`) from actual fixture flow (`UPSTREAM LIVE`). The latter requires both hydrated snapshots and both accepted upstream streams for an active fixture.
 
 ## Public/control split
 

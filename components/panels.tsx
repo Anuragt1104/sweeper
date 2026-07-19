@@ -439,17 +439,19 @@ export function AuditTrail({
   );
 }
 
-export function ProofModal({ seq, onClose }: { seq: number; onClose: () => void }) {
-  const [bundle, setBundle] = useState<ProofBundle | { error: string } | null>(null);
+export function ProofModal({ seq, source = "live", sessionId, onClose }: { seq: number; source?: "live" | "demo"; sessionId?: string; onClose: () => void }) {
+  const [bundle, setBundle] = useState<ProofBundle | { error: string | { message?: string } } | null>(null);
   useEffect(() => {
     let alive = true;
-    fetch(`/api/proof/${seq}`)
+    const params = new URLSearchParams({ source });
+    if (sessionId) params.set("sessionId", sessionId);
+    fetch(`/api/proof/${seq}?${params}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((b) => alive && setBundle(b));
     return () => {
       alive = false;
     };
-  }, [seq]);
+  }, [seq, sessionId, source]);
 
   const ok = bundle && "verified" in bundle;
   return (
@@ -460,7 +462,7 @@ export function ProofModal({ seq, onClose }: { seq: number; onClose: () => void 
           <button className="text-muted hover:text-ink" onClick={onClose}>✕</button>
         </div>
         {!bundle && <Empty label="Building inclusion proof…" />}
-        {bundle && "error" in bundle && <div className="text-crit text-sm">{bundle.error}</div>}
+        {bundle && "error" in bundle && <div className="text-crit text-sm">{typeof bundle.error === "string" ? bundle.error : bundle.error.message ?? "Proof unavailable"}</div>}
         {ok && (
           <div className="space-y-3 text-sm">
             <div className={`chip ${bundle.verified ? "text-up border-up/40" : "text-crit"}`}>

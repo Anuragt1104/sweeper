@@ -9,11 +9,13 @@ import {
   type SupervisorLock,
 } from "@/lib/persistence/event-store";
 import type { MarketTick } from "@/lib/market/ticks";
+import type { LedgerEntry } from "@/lib/proof/ledger";
 
 export class MemoryEventStore implements EventStore {
   private sessions = new Map<string, SessionRecord>();
   private ticks = new Map<string, StoredTick[]>();
   private cursors = new Map<string, StreamCursor>();
+  private ledgerRecords = new Map<string, Map<number, LedgerEntry>>();
   private receipts: ProofReceiptRecord[] = [];
   private anchors: LedgerAnchorRecord[] = [];
   private locked = false;
@@ -84,6 +86,36 @@ export class MemoryEventStore implements EventStore {
 
   async listTicks(sessionId: string): Promise<StoredTick[]> {
     return structuredClone(this.ticks.get(sessionId) ?? []);
+  }
+
+  async listTicksPage(sessionId: string, afterId: string | null, limit: number): Promise<StoredTick[]> {
+    const after = afterId === null ? -1 : Number(afterId);
+    return structuredClone((this.ticks.get(sessionId) ?? [])
+      .filter((tick) => Number(tick.id) > after)
+      .slice(0, Math.max(1, limit)));
+  }
+
+  async appendLedgerRecords(sessionId: string, records: LedgerEntry[]): Promise<void> {
+    const stored = this.ledgerRecords.get(sessionId) ?? new Map<number, LedgerEntry>();
+    for (const entry of records) {
+      const existing = stored.get(entry.record.seq);
+      if (existing && existing.leafHash !== entry.leafHash) {
+        throw new Error(`Ledger record conflict at ${sessionId}:${entry.record.seq}`);
+      }
+      stored.set(entry.record.seq, structuredClone(entry));
+    }
+    this.ledgerRecords.set(sessionId, stored);
+  }
+
+  async loadLedgerRecord(sessionId: string, seq: number): Promise<LedgerEntry | null> {
+    const entry = this.ledgerRecords.get(sessionId)?.get(seq);
+    return entry ? structuredClone(entry) : null;
+  }
+
+  async listLedgerLeafHashes(sessionId: string): Promise<string[]> {
+    return [...(this.ledgerRecords.get(sessionId)?.values() ?? [])]
+      .sort((a, b) => a.record.seq - b.record.seq)
+      .map((entry) => entry.leafHash);
   }
 
   async saveCursor(cursor: StreamCursor): Promise<void> {

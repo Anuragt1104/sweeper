@@ -14,7 +14,12 @@
  * behaviour instead of raw data. This is what turns the agents from a black box
  * into an auditable instrument.
  */
-import { buildMerkleTree, leafHash, verifyMerkleProof, type MerkleProofStep } from "@/lib/util/merkle";
+import {
+  buildMerkleTreeFromLeafHashes,
+  leafHash,
+  verifyMerkleProof,
+  type MerkleProofStep,
+} from "@/lib/util/merkle";
 import { bytesToHex } from "@noble/hashes/utils";
 
 export type LedgerKind =
@@ -54,10 +59,27 @@ export interface ProofBundle {
   verified: boolean;
 }
 
+export interface LedgerEntry {
+  record: LedgerRecord;
+  leaf: string;
+  leafHash: string;
+}
+
+export interface AuditLedgerOptions {
+  /** Undefined retains every full record. Live sessions use a bounded window. */
+  maxFullRecords?: number;
+}
+
 export class AuditLedger {
-  private records: LedgerRecord[] = [];
-  private leaves: string[] = [];
+  private records = new Map<number, LedgerEntry>();
+  private hashes: string[] = [];
   private cachedRoot: string | null = null;
+
+  constructor(private readonly options: AuditLedgerOptions = {}) {
+    if (options.maxFullRecords !== undefined && options.maxFullRecords < 1) {
+      throw new Error("maxFullRecords must be at least one");
+    }
+  }
 
   append(
     kind: LedgerKind,
@@ -67,8 +89,9 @@ export class AuditLedger {
     payload: unknown,
     reactedToHash?: string,
   ): LedgerRecord {
-    const seq = this.records.length;
+    const seq = this.hashes.length;
     const leaf = canonical({ seq, tick, tsMs, kind, payload });
+    const hash = bytesToHex(leafHash(leaf));
     const record: LedgerRecord = {
       seq,
       tick,
@@ -77,10 +100,14 @@ export class AuditLedger {
       summary,
       payload,
       reactedToHash,
-      hash: bytesToHex(leafHash(leaf)),
+      hash,
     };
-    this.records.push(record);
-    this.leaves.push(leaf);
+    this.records.set(seq, { record, leaf, leafHash: hash });
+    this.hashes.push(hash);
+    const limit = this.options.maxFullRecords;
+    if (limit !== undefined && this.records.size > limit) {
+      this.records.delete(seq - limit);
+    }
     this.cachedRoot = null;
     return record;
   }
@@ -91,38 +118,87 @@ export class AuditLedger {
   }
 
   size(): number {
-    return this.records.length;
+    return this.hashes.length;
+  }
+
+  retainedRecordCount(): number {
+    return this.records.size;
+  }
+
+  leafHashes(): string[] {
+    return [...this.hashes];
   }
 
   root(): string {
     if (this.cachedRoot) return this.cachedRoot;
-    this.cachedRoot = buildMerkleTree(this.leaves).root;
+    this.cachedRoot = buildMerkleTreeFromLeafHashes(this.hashes).root;
     return this.cachedRoot;
   }
 
   all(): LedgerRecord[] {
-    return this.records;
+    return [...this.records.values()].map((entry) => entry.record);
   }
 
   /** Most recent `n` records (for the live audit trail). */
   recent(n: number): LedgerRecord[] {
-    return this.records.slice(Math.max(0, this.records.length - n));
+    return this.all().slice(-n);
   }
 
   get(seq: number): LedgerRecord | undefined {
-    return this.records[seq];
+    return this.records.get(seq)?.record;
+  }
+
+  entry(seq: number): LedgerEntry | undefined {
+    return this.records.get(seq);
+  }
+
+  /** Full retained entries whose global sequence is at or after `firstSeq`. */
+  entriesSince(firstSeq: number): LedgerEntry[] {
+    return [...this.records.entries()]
+      .filter(([seq]) => seq >= firstSeq)
+      .map(([, entry]) => entry);
+  }
+
+  verifyEntry(entry: LedgerEntry, proof: MerkleProofStep[], root: string): boolean {
+    return verifyMerkleProof(entry.leaf, proof, root);
   }
 
   /** Build a verifiable inclusion proof for one record. */
   proof(seq: number): ProofBundle | null {
-    const record = this.records[seq];
-    if (!record) return null;
-    const tree = buildMerkleTree(this.leaves);
+    const entry = this.records.get(seq);
+    if (!entry) return null;
+    const tree = buildMerkleTreeFromLeafHashes(this.hashes);
     const proof = tree.proof(seq);
-    const leaf = this.leaves[seq];
-    const verified = verifyMerkleProof(leaf, proof, tree.root);
-    return { record, leaf, leafHash: record.hash, proof, root: tree.root, verified };
+    const verified = verifyMerkleProof(entry.leaf, proof, tree.root);
+    return {
+      record: entry.record,
+      leaf: entry.leaf,
+      leafHash: entry.leafHash,
+      proof,
+      root: tree.root,
+      verified,
+    };
   }
+}
+
+/** Reconstruct a full inclusion bundle for a record archived outside the live process. */
+export function buildProofBundle(entry: LedgerEntry, leafHashes: string[]): ProofBundle {
+  if (entry.record.seq < 0 || entry.record.seq >= leafHashes.length) {
+    throw new Error(`Ledger sequence ${entry.record.seq} is outside the ${leafHashes.length}-leaf tree`);
+  }
+  if (leafHashes[entry.record.seq] !== entry.leafHash) {
+    throw new Error(`Archived ledger hash mismatch at sequence ${entry.record.seq}`);
+  }
+  const tree = buildMerkleTreeFromLeafHashes(leafHashes);
+  const proof = tree.proof(entry.record.seq);
+  return {
+    record: entry.record,
+    leaf: entry.leaf,
+    leafHash: entry.leafHash,
+    proof,
+    root: tree.root,
+    verified: verifyMerkleProof(entry.leaf, proof, tree.root),
+  };
 }
 
 /** Deterministic, key-sorted JSON — the canonical form that gets hashed. */

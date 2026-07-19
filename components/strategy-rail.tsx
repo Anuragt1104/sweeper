@@ -17,7 +17,7 @@ import type { StrategyLabView } from "@/lib/strategy-lab/projection";
 import type { StrategyStanceKind } from "@/lib/strategy-lab/designs";
 import { Sparkline } from "@/components/charts";
 
-export function StrategyRail({ state, view }: { state: EngineState; view: StrategyLabView }) {
+export function StrategyRail({ state, view, onEvidence }: { state: EngineState; view: StrategyLabView; onEvidence: (strategyId: string) => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = view.strategy.rows.find((row) => row.design.id === selectedId) ?? null;
   return (
@@ -69,12 +69,12 @@ export function StrategyRail({ state, view }: { state: EngineState; view: Strate
         {view.strategy.rows.filter((row) => row.stance.kind === "trade" || row.stance.kind === "quote").map((row) => `${row.design.name} ${stanceLabel(row.stance.kind)}`).join(". ")}
       </div>
 
-      {selected ? <StrategyInspector row={selected} onClose={() => setSelectedId(null)} /> : null}
+      {selected ? <StrategyInspector row={selected} onClose={() => setSelectedId(null)} onEvidence={() => onEvidence(selected.design.id)} /> : null}
     </section>
   );
 }
 
-function StrategyInspector({ row, onClose }: { row: StrategyLabView["strategy"]["rows"][number]; onClose: () => void }) {
+function StrategyInspector({ row, onClose, onEvidence }: { row: StrategyLabView["strategy"]["rows"][number]; onClose: () => void; onEvidence: () => void }) {
   return (
     <aside className="strategy-inspector" aria-label={`${row.design.name} design inspector`}>
       <div className="strategy-inspector__head"><div><i style={{ background: row.design.color }} /><span>Strategy design</span><h3>{row.design.name}</h3></div><button type="button" onClick={onClose} aria-label="Close strategy inspector"><X size={18} /></button></div>
@@ -88,6 +88,7 @@ function StrategyInspector({ row, onClose }: { row: StrategyLabView["strategy"][
       </InspectorBlock>
       <InspectorBlock title="Stand-down conditions"><ul>{row.design.standDownWhen.map((condition) => <li key={condition}>{condition}</li>)}</ul></InspectorBlock>
       <InspectorBlock title="Positions and last decision"><p>{row.agent?.positions.length ? row.agent.positions.map((position) => `${position.label} ${position.net}`).join(" · ") : "No open positions"}</p><p>{row.agent?.lastRationale ?? "No decision yet"}</p></InspectorBlock>
+      <button className="btn" type="button" onClick={onEvidence}>Open Decision Receipt</button>
     </aside>
   );
 }
@@ -131,4 +132,3 @@ function pp(value: number | null | undefined): string {
 function signed(value: number): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`;
 }
-

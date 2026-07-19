@@ -79,7 +79,7 @@ export class SweeperEngine {
   private agents: Agent[];
   private books = new Map<string, Portfolio>();
   private exchange: ExecutionAdapter;
-  private ledger = new AuditLedger();
+  private ledger: AuditLedger;
   private horizon: HorizonMachine;
   private shockStrip = new ShockStripAssembler();
   private deskFeatures = new DeskFeatureStore();
@@ -122,6 +122,7 @@ export class SweeperEngine {
     this.config = config;
     this.mode = mode;
     this.sessionId = sessionId ?? uid("swpr");
+    this.ledger = new AuditLedger(mode === "live" ? { maxFullRecords: 256 } : {});
     this.gen = new MarketTickGenerator(fixture, config, scenario, tempoProvider);
     this.sentinel = new Sentinel(fixture.id, config);
     this.agents = buildAgents();
@@ -333,6 +334,17 @@ export class SweeperEngine {
           stoodDown: decision.stoodDown ?? false,
           kind: decision.kind ?? null,
           drivingInputs: decision.drivingInputs ?? null,
+          analysis: {
+            modelVersion: desk.model.weightsVersion,
+            regime: classifyRegime(desk.path, this.config),
+            quality: assessment.quality,
+            fair1x2: desk.model.ready ? desk.model.fair1x2 : null,
+            edgeVsBook: desk.model.ready ? desk.model.edgeVsObs : null,
+            horizonTransition:
+              horizonState.lastCollapse?.triggerSeq === tick.seq
+                ? horizonState.lastCollapse
+                : null,
+          },
           orders: decision.orders,
           quotes: decision.quotes,
         },
@@ -344,14 +356,28 @@ export class SweeperEngine {
           const res = this.exchange.executeOrder(order, tick, this.tradeReadiness);
           if (res.ok) {
             book.applyFill(res.fill);
-            this.ledger.append("fill", tick.seq, tick.tsMs, fillSummary(res.fill), res.fill, decisionHash);
+            this.ledger.append(
+              "fill",
+              tick.seq,
+              tick.tsMs,
+              fillSummary(res.fill),
+              { ...res.fill, portfolioAfter: book.metrics() },
+              decisionHash,
+            );
           }
         }
       } else {
         const fills = this.exchange.matchQuotes(decision.quotes, tick, this.tradeReadiness);
         for (const fill of fills) {
           book.applyFill(fill);
-          this.ledger.append("fill", tick.seq, tick.tsMs, fillSummary(fill), fill, decisionHash);
+          this.ledger.append(
+            "fill",
+            tick.seq,
+            tick.tsMs,
+            fillSummary(fill),
+            { ...fill, portfolioAfter: book.metrics() },
+            decisionHash,
+          );
         }
       }
     }

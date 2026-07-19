@@ -3,7 +3,9 @@ import test from "node:test";
 import { fixtureById, getFixtures } from "../lib/data/worldcup";
 import { resolveConfig } from "../lib/engine/config";
 import { SweeperEngine } from "../lib/engine/engine";
-import { EngineManager, RECOVERY_MAX_AGE_MS } from "../lib/engine/manager";
+import { EngineManager, RECOVERY_MAX_AGE_MS, recoverTicksIntoEngine } from "../lib/engine/manager";
+import type { SessionRecord, StoredTick } from "../lib/persistence/event-store";
+import { AuditLedger } from "../lib/proof/ledger";
 import { MarketTickGenerator } from "../lib/market/ticks";
 import { MemoryEventStore } from "../lib/persistence/memory-event-store";
 import { selectFixture } from "../lib/supervisor/fixture-supervisor";
@@ -47,6 +49,48 @@ test("event store inserts ticks idempotently and persists state with cursors", a
   assert.equal((await store.loadCursors(fixture.id))[0].lastEventId, "odds-9");
 });
 
+test("event store pages ticks and archives ledger entries for historical proofs", async () => {
+  const fixture = fixtureById("wc26-a-md2-arg-pol") ?? getFixtures()[0];
+  const config = resolveConfig({ seed: 19 });
+  const engine = new SweeperEngine(fixture, config, "live", [], undefined, "paged-session");
+  const store = new MemoryEventStore();
+  await store.createSession({
+    sessionId: engine.sessionId,
+    fixtureId: fixture.id,
+    competitionId: fixture.competitionId ?? null,
+    provenance: "live",
+    executionMode: "shadow",
+    configuration: config,
+    artifactHash: "artifact",
+    status: "running",
+    startedAtMs: 1,
+    completedAtMs: null,
+    latestState: null,
+    ledgerRoot: "",
+  });
+
+  const generator = new MarketTickGenerator(fixture, config);
+  for (let index = 0; index < 205; index += 1) {
+    const tick = generator.at(index);
+    await store.appendTick(engine.sessionId, tick, tick.tsMs);
+  }
+
+  const first = await store.listTicksPage(engine.sessionId, null, 100);
+  const second = await store.listTicksPage(engine.sessionId, first.at(-1)!.id, 100);
+  const third = await store.listTicksPage(engine.sessionId, second.at(-1)?.id ?? first.at(-1)!.id, 100);
+  assert.equal(first.length, 100);
+  assert.ok(second.length <= 100);
+  assert.equal(first.length + second.length + third.length, (await store.listTicks(engine.sessionId)).length);
+
+  const tick = generator.at(0);
+  engine.ingest(tick, tick.tsMs);
+  const entries = engine.getLedger().entriesSince(0);
+  await store.appendLedgerRecords(engine.sessionId, entries);
+  const oldest = await store.loadLedgerRecord(engine.sessionId, 0);
+  assert.equal(oldest?.record.seq, 0);
+  assert.deepEqual(await store.listLedgerLeafHashes(engine.sessionId), entries.map((entry) => entry.leafHash));
+});
+
 test("replaying stored ticks with the original session identity reproduces the ledger root", () => {
   const fixture = fixtureById("wc26-a-md2-arg-pol") ?? getFixtures()[0];
   const config = resolveConfig({ seed: 23 });
@@ -59,6 +103,78 @@ test("replaying stored ticks with the original session identity reproduces the l
     second.ingest(structuredClone(tick), tick.tsMs);
   }
   assert.equal(second.getState().ledger.root, first.getState().ledger.root);
+});
+
+test("6,000 processed ticks recover in pages with the identical bounded-ledger root", async () => {
+  const tickCount = Number(process.env.SWEEPER_RECOVERY_TEST_TICKS ?? 6_000);
+  const fixture = fixtureById("wc26-a-md2-arg-pol") ?? getFixtures()[0];
+  const config = resolveConfig({ seed: 31 });
+  const base = new MarketTickGenerator(fixture, config).at(0);
+  const ticks: StoredTick[] = [];
+  class RecoveryHarness {
+    readonly sessionId = "large-live-session";
+    private readonly ledger = new AuditLedger({ maxFullRecords: 256 });
+    ingest(tick: typeof base, processedAtMs?: number) {
+      void processedAtMs;
+      this.ledger.append("tick", tick.seq, tick.tsMs, `tick ${tick.seq}`, { seq: tick.seq });
+      return true;
+    }
+    getLedger() { return this.ledger; }
+    getState(): never { throw new Error("processed-only recovery must not materialize EngineState per tick"); }
+  }
+  const source = new RecoveryHarness();
+  for (let index = 0; index < tickCount; index += 1) {
+    const tick = structuredClone(base);
+    tick.seq = index;
+    tick.tsMs += index * 1_000;
+    tick.minute = index / 60;
+    tick.upstream = {
+      ...tick.upstream,
+      scoreSeq: index,
+      scoreTsMs: tick.upstream?.scoreTsMs ?? tick.tsMs,
+      oddsTsMs: tick.upstream?.oddsTsMs ?? tick.tsMs,
+    };
+    source.ingest(tick, tick.tsMs);
+    ticks.push({
+      id: String(index + 1),
+      sessionId: source.sessionId,
+      idempotencyHash: String(index),
+      tick,
+      processedAtMs: tick.tsMs,
+      processingStatus: "processed",
+    });
+  }
+  const sourceRoot = source.getLedger().root();
+  const session: SessionRecord = {
+    sessionId: source.sessionId,
+    fixtureId: fixture.id,
+    competitionId: fixture.competitionId ?? null,
+    provenance: "live",
+    executionMode: "shadow",
+    configuration: config,
+    artifactHash: "artifact",
+    status: "running",
+    startedAtMs: base.tsMs,
+    completedAtMs: null,
+    latestState: null,
+    ledgerRoot: sourceRoot,
+  };
+  let pageCalls = 0;
+  const store = {
+    async listTicksPage(_sessionId: string, afterId: string | null, limit: number) {
+      pageCalls += 1;
+      const start = afterId === null ? 0 : Number(afterId);
+      return ticks.slice(start, start + limit);
+    },
+    async appendLedgerRecords() {},
+    async markTickProcessed() { throw new Error("processed rows must not be marked again"); },
+  };
+  const recovered = new RecoveryHarness();
+  await recoverTicksIntoEngine(recovered, store, session, 100);
+
+  assert.equal(recovered.getLedger().root(), sourceRoot);
+  assert.equal(recovered.getLedger().retainedRecordCount(), 256);
+  assert.equal(pageCalls, Math.ceil(tickCount / 100) + 1);
 });
 
 test("recovery abandons stale sessions before loading their tick history", async () => {

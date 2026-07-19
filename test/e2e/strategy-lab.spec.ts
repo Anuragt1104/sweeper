@@ -21,7 +21,11 @@ test("operator can start simulation from the linkable Advanced workspace", async
   await page.getByPlaceholder("shared control key").fill("e2e-control");
   await page.locator("select").filter({ has: page.locator('option[value="live"]') }).selectOption("simulation");
   await page.getByRole("button", { name: /Start/ }).click();
+  const started = await page.request.get("/api/session");
+  expect((await started.json()).provenance).toBe("simulation");
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "Waiting for the next covered fixture" })).toBeVisible();
+  await page.getByRole("button", { name: "Demo" }).click();
   await expect(page.getByRole("heading", { name: "What happened?" })).toBeVisible({ timeout: 15_000 });
 
   const api = await page.request.get("/api/horizon");
@@ -65,4 +69,26 @@ test("mobile is spectator-first without horizontal page overflow", async ({ page
   await expect(page.getByRole("heading", { name: "What happened?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "What does the desk infer?" })).toBeAttached();
   await expect(page.getByRole("heading", { name: "What will each strategy do?" })).toBeAttached();
+});
+
+test("Live Watchtower separates viewer connectivity from upstream fixture flow", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Waiting for the next covered fixture|Preparing fixture/ })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/VIEWER STREAM (OPEN|CONNECTING)/)).toBeVisible();
+  await expect(page.getByText(/NO ACTIVE COVERED FIXTURE|UPSTREAM (CONNECTING|DEGRADED|OFFLINE)/)).toBeVisible();
+});
+
+test("judge director opens deterministic scenes and a proof-complete Decision Receipt", async ({ page }) => {
+  await page.goto("/?demo=act2&present=judge&scene=post_goal&contract=match_1x2");
+  await expect(page.locator(".presenter-bar")).toBeVisible();
+  await expect(page.locator(".scoreline")).toContainText("1–0", { timeout: 15_000 });
+  await page.locator(".stance-row").filter({ hasText: "Collapse Fade" }).click();
+  await page.getByRole("button", { name: "Open Decision Receipt" }).click();
+  await expect(page).toHaveURL(/advanced=evidence/);
+  await expect(page.getByText("SWEEPER DECISION PROOF", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("TXLINE SETTLEMENT GUARD", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Verify decision proof" }).click();
+  await expect(page.getByText("VERIFIED OFFLINE PATH", { exact: true })).toBeVisible();
+  await page.keyboard.press("1");
+  await expect(page).toHaveURL(/scene=overview/);
 });

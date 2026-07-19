@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const state = manager().getState();
+  const liveState = state?.provenance === "simulation" ? null : state;
   const databaseReady = await eventStore().isReady();
   const supervisorStatus = supervisor().getStatus();
   const now = Date.now();
@@ -23,24 +24,24 @@ export async function GET() {
         node: process.version,
       },
       database: { ready: databaseReady },
-      supervisor: supervisorStatus,
+      supervisor: { ...supervisorStatus, enabled: process.env.SWEEPER_AUTO_START_LIVE === "true" },
       credentials: { txlineConfigured: credentialsConfigured, controlKeyConfigured: controlConfigured() },
-      activeFixtureId: state?.fixture.id ?? null,
-      upstream: state ? {
-        ...state.feedHealth,
-        scoreAgeMs: state.feedHealth.lastScoreAtMs === null ? null : Math.max(0, now - state.feedHealth.lastScoreAtMs),
-        oddsAgeMs: state.feedHealth.lastOddsAtMs === null ? null : Math.max(0, now - state.feedHealth.lastOddsAtMs),
+      activeFixtureId: liveState?.fixture.id ?? null,
+      upstream: liveState ? {
+        ...liveState.feedHealth,
+        scoreAgeMs: liveState.feedHealth.lastScoreAtMs === null ? null : Math.max(0, now - liveState.feedHealth.lastScoreAtMs),
+        oddsAgeMs: liveState.feedHealth.lastOddsAtMs === null ? null : Math.max(0, now - liveState.feedHealth.lastOddsAtMs),
       } : null,
-      tradeReadiness: state?.tradeReadiness ?? null,
+      tradeReadiness: liveState?.tradeReadiness ?? null,
       horizon: {
-        ready: state?.horizon.ready ?? false,
-        missingRequiredMarket: state?.horizon.missingRequiredMarket ?? true,
-        source: state?.horizon.current?.source ?? null,
+        ready: liveState?.horizon.ready ?? false,
+        missingRequiredMarket: liveState?.horizon.missingRequiredMarket ?? true,
+        source: liveState?.horizon.current?.source ?? null,
       },
       proof: {
-        settlementStatus: state?.settlement?.status ?? null,
-        txlineVerified: Boolean(state?.settlement?.txlineSettlementProof),
-        ledgerAnchored: Boolean(state?.ledger.anchor),
+        settlementStatus: liveState?.settlement?.status ?? null,
+        txlineVerified: Boolean(liveState?.settlement?.txlineSettlementProof),
+        ledgerAnchored: Boolean(liveState?.ledger.anchor),
       },
     },
     { headers: { "Cache-Control": "no-store" } },

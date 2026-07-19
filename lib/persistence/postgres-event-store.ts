@@ -11,6 +11,7 @@ import {
 } from "@/lib/persistence/event-store";
 import type { MarketTick } from "@/lib/market/ticks";
 import type { EngineConfig } from "@/lib/engine/config";
+import type { LedgerEntry, LedgerKind } from "@/lib/proof/ledger";
 
 const LOCK_NAME = "sweeper-fixture-supervisor-v2";
 
@@ -138,6 +139,63 @@ export class PostgresEventStore implements EventStore {
       [sessionId],
     );
     return result.rows.map(mapTick);
+  }
+
+  async listTicksPage(sessionId: string, afterId: string | null, limit: number): Promise<StoredTick[]> {
+    const result = await this.pool.query(
+      `SELECT * FROM sweeper_ingested_ticks
+       WHERE session_id=$1 AND ($2::bigint IS NULL OR id > $2::bigint)
+       ORDER BY id LIMIT $3`,
+      [sessionId, afterId, Math.max(1, Math.min(limit, 1_000))],
+    );
+    return result.rows.map(mapTick);
+  }
+
+  async appendLedgerRecords(sessionId: string, records: LedgerEntry[]): Promise<void> {
+    if (records.length === 0) return;
+    const rows = records.map((entry) => ({
+      seq: entry.record.seq,
+      tick_seq: entry.record.tick,
+      ts_ms: entry.record.tsMs,
+      kind: entry.record.kind,
+      summary: entry.record.summary,
+      payload: entry.record.payload,
+      reacted_to_hash: entry.record.reactedToHash ?? null,
+      record_hash: entry.record.hash,
+      canonical_leaf: entry.leaf,
+      leaf_hash: entry.leafHash,
+    }));
+    await this.pool.query(
+      `INSERT INTO sweeper_ledger_records (
+         session_id, seq, tick_seq, ts_ms, kind, summary, payload,
+         reacted_to_hash, record_hash, canonical_leaf, leaf_hash
+       )
+       SELECT $1, x.seq, x.tick_seq, x.ts_ms, x.kind, x.summary, x.payload,
+              x.reacted_to_hash, x.record_hash, x.canonical_leaf, x.leaf_hash
+       FROM jsonb_to_recordset($2::jsonb) AS x(
+         seq bigint, tick_seq bigint, ts_ms bigint, kind text, summary text,
+         payload jsonb, reacted_to_hash text, record_hash text,
+         canonical_leaf text, leaf_hash text
+       )
+       ON CONFLICT (session_id, seq) DO NOTHING`,
+      [sessionId, JSON.stringify(rows)],
+    );
+  }
+
+  async loadLedgerRecord(sessionId: string, seq: number): Promise<LedgerEntry | null> {
+    const result = await this.pool.query(
+      "SELECT * FROM sweeper_ledger_records WHERE session_id=$1 AND seq=$2",
+      [sessionId, seq],
+    );
+    return result.rows[0] ? mapLedgerEntry(result.rows[0]) : null;
+  }
+
+  async listLedgerLeafHashes(sessionId: string): Promise<string[]> {
+    const result = await this.pool.query<{ leaf_hash: string }>(
+      "SELECT leaf_hash FROM sweeper_ledger_records WHERE session_id=$1 ORDER BY seq",
+      [sessionId],
+    );
+    return result.rows.map((row) => row.leaf_hash);
   }
 
   async saveCursor(cursor: StreamCursor): Promise<void> {
@@ -278,6 +336,19 @@ interface TickRow {
   processing_status: StoredTick["processingStatus"];
 }
 
+interface LedgerRow {
+  seq: number | string;
+  tick_seq: number | string;
+  ts_ms: number | string;
+  kind: LedgerKind;
+  summary: string;
+  payload: unknown;
+  reacted_to_hash: string | null;
+  record_hash: string;
+  canonical_leaf: string;
+  leaf_hash: string;
+}
+
 function mapSession(row: SessionRow): SessionRecord {
   if (Number(row.schema_version) !== PUBLIC_SCHEMA_VERSION) {
     throw new Error(`Unsupported stored schema version ${row.schema_version}`);
@@ -309,6 +380,23 @@ function mapTick(row: TickRow): StoredTick {
     tick: row.tick as MarketTick,
     processedAtMs: toNumber(row.processed_at_ms),
     processingStatus: row.processing_status,
+  };
+}
+
+function mapLedgerEntry(row: LedgerRow): LedgerEntry {
+  return {
+    record: {
+      seq: toNumber(row.seq),
+      tick: toNumber(row.tick_seq),
+      tsMs: toNumber(row.ts_ms),
+      kind: row.kind,
+      summary: row.summary,
+      payload: row.payload,
+      reactedToHash: row.reacted_to_hash ?? undefined,
+      hash: row.record_hash,
+    },
+    leaf: row.canonical_leaf,
+    leafHash: row.leaf_hash,
   };
 }
 

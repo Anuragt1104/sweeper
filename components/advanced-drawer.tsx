@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { EngineState } from "@/lib/engine/state";
 import type { OddsViewId } from "@/lib/tempo/types";
-import { CausalRail } from "@/components/desk";
+import { EvidenceWorkspace } from "@/components/evidence-workspace";
 import { HorizonAdvanced } from "@/components/horizon";
 import { ShockStrip } from "@/components/shock-strip";
 import {
@@ -16,11 +16,12 @@ import {
   SettlementCard,
   type FixtureLite,
 } from "@/components/panels";
+import type { EngineSource } from "@/components/use-engine-stream-controller";
 
-export type AdvancedTab = "causal" | "markets" | "sentinel" | "horizon" | "proofs" | "operator" | "research";
+export type AdvancedTab = "evidence" | "markets" | "sentinel" | "horizon" | "proofs" | "operator" | "research";
 
 const TABS: Array<{ id: AdvancedTab; label: string }> = [
-  { id: "causal", label: "Causal" },
+  { id: "evidence", label: "Evidence" },
   { id: "markets", label: "Markets" },
   { id: "sentinel", label: "Sentinel" },
   { id: "horizon", label: "Horizon" },
@@ -36,6 +37,8 @@ export function AdvancedDrawer({
   fixtures,
   controlKey,
   selectedContract,
+  source,
+  evidenceStrategy,
   onTab,
   onClose,
   onControlKey,
@@ -48,6 +51,8 @@ export function AdvancedDrawer({
   fixtures: FixtureLite[];
   controlKey: string;
   selectedContract: OddsViewId;
+  source: EngineSource;
+  evidenceStrategy: string;
   onTab: (tab: AdvancedTab) => void;
   onClose: () => void;
   onControlKey: (key: string) => void;
@@ -111,6 +116,8 @@ export function AdvancedDrawer({
               fixtures={fixtures}
               controlKey={controlKey}
               selectedContract={selectedContract}
+              source={source}
+              evidenceStrategy={evidenceStrategy}
               onControlKey={onControlKey}
               onSelectContract={onSelectContract}
               onProof={setProofSeq}
@@ -119,7 +126,7 @@ export function AdvancedDrawer({
           ) : null}
         </div>
       </aside>
-      {proofSeq != null ? <ProofModal seq={proofSeq} onClose={() => setProofSeq(null)} /> : null}
+      {proofSeq != null && state ? <ProofModal seq={proofSeq} source={source} sessionId={state.sessionId} onClose={() => setProofSeq(null)} /> : null}
     </>
   );
 }
@@ -130,6 +137,8 @@ function AdvancedContent({
   fixtures,
   controlKey,
   selectedContract,
+  source,
+  evidenceStrategy,
   onControlKey,
   onSelectContract,
   onProof,
@@ -140,12 +149,14 @@ function AdvancedContent({
   fixtures: FixtureLite[];
   controlKey: string;
   selectedContract: OddsViewId;
+  source: EngineSource;
+  evidenceStrategy: string;
   onControlKey: (key: string) => void;
   onSelectContract: (contract: OddsViewId) => void;
   onProof: (seq: number) => void;
   onReplayTour: () => void;
 }) {
-  if (tab === "causal") return <CausalRail state={state} />;
+  if (tab === "evidence") return <EvidenceWorkspace state={state} source={source} strategyId={evidenceStrategy} contract={selectedContract} />;
   if (tab === "markets") return <OddsBoard tick={state.current} />;
   if (tab === "sentinel") return <SentinelFeed signals={state.signals} counts={state.signalCounts} />;
   if (tab === "horizon") return <HorizonAdvanced state={state} />;

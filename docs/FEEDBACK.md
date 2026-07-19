@@ -31,11 +31,9 @@ Our experience building Sweeper on TxLINE, as requested in the submission form.
   (`` `${txSig}:${leagues.join(',')}:${jwt}` ``) and that it's Ed25519-detached then
   base64 took trial and error. A copy-pasteable signing snippet would remove a class of
   support questions.
-- **Numeric stat-key / game-phase tables aren't fully published.** The named structure
-  (goals/cards/corners × period) is clear, but the numeric `statKey` ordering needed for
-  `stat-validation` is inferred. We isolated our assumption in one place so a single edit
-  re-aligns everything if the official table differs — but publishing the table would
-  remove the guesswork.
+- **Official soccer stat keys are now published.** That removed the earlier ambiguity in
+  our `stat-validation` mapping. Keeping the numeric table versioned and linked beside the
+  validation example would make future schema changes equally easy to audit.
 - **World Cup competition id.** We made it an env override (`TXLINE_COMPETITION_ID`) since
   we couldn't confirm the exact FIFA World Cup 2026 id from the docs alone.
 
