@@ -183,7 +183,7 @@ function SessionWatchtower({ source, connection, health }: { source: EngineSourc
       <p>No simulation will silently replace an unavailable upstream. Browser connectivity and TxLINE fixture flow are reported separately.</p>
       <div className="watchtower__truth"><strong>{truth.viewerStream}</strong><strong>{truth.upstream}</strong></div>
       <div className="watchtower__grid">
-        <HealthFact label="Process" value={health?.process.ok ? "READY" : "CHECKING"} detail={health ? `${health.process.uptimeSeconds}s uptime` : "Awaiting health"} />
+        <HealthFact label="Process" value={health?.process.ok ? "READY" : "CHECKING"} detail={health ? `${health.process.uptimeSeconds}s uptime${health.process.rssMb ? ` · ${health.process.rssMb} MB RSS` : ""}` : "Awaiting health"} />
         <HealthFact label="Database" value={health?.database.ready ? "READY" : "CHECKING"} detail="Postgres recovery store" />
         <HealthFact label="Supervisor" value={health?.supervisor.enabled ? health.supervisor.state.toUpperCase() : "PAUSED"} detail={health?.supervisor.detail ?? "Awaiting health"} />
         <HealthFact label="Credentials" value={health?.credentials.txlineConfigured ? "PRESENT" : "MISSING"} detail="Values are never exposed" />

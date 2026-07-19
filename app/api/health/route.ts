@@ -17,7 +17,11 @@ export async function GET() {
   ));
   return Response.json(
     {
-      process: { ok: true, uptimeSeconds: Math.round(process.uptime()) },
+      process: {
+        ok: true,
+        uptimeSeconds: Math.round(process.uptime()),
+        rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      },
       schemaVersion: 2,
       version: {
         commit: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "local",

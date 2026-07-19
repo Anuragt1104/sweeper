@@ -1,7 +1,7 @@
 import type { FeedStatus, SupervisorStatus } from "@/lib/engine/state";
 
 export interface PublicHealth {
-  process: { ok: boolean; uptimeSeconds: number };
+  process: { ok: boolean; uptimeSeconds: number; rssMb?: number };
   database: { ready: boolean };
   supervisor: SupervisorStatus & { enabled: boolean };
   credentials: { txlineConfigured: boolean; controlKeyConfigured: boolean };
