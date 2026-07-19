@@ -24,7 +24,7 @@ export function StrategyRail({ state, view, onEvidence }: { state: EngineState; 
     <section className="lab-rail lab-rail--strategy" aria-labelledby="strategy-title">
       <header className="rail-heading">
         <span className="rail-number">3</span>
-        <div><span>ACT</span><h2 id="strategy-title">What will each strategy do?</h2><p>Stance on this contract · shadow execution.</p></div>
+        <div><span>ACT</span><h2 id="strategy-title">What will each strategy do?</h2><p>Stance on this contract · {state.executionMode} execution.</p></div>
       </header>
 
       <div className="stance-board" aria-label="Seven strategy stances">
